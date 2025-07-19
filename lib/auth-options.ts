@@ -1,7 +1,8 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { verifyPassword } from './auth-utils';
-import { mockUsers } from './mock-data';
+import connectDB from './mongodb';
+import User from '@/models/User';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,29 +17,37 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Find user in mock database
-        const user = mockUsers.find(
-          (u) => u.email.toLowerCase() === credentials.email.toLowerCase()
-        );
+        try {
+          // Connect to MongoDB
+          await connectDB();
 
-        if (!user) {
+          // Find user in MongoDB
+          const user = await User.findOne({ 
+            email: credentials.email.toLowerCase() 
+          });
+
+          if (!user) {
+            return null;
+          }
+
+          // Verify password
+          const isValidPassword = await verifyPassword(credentials.password, user.password);
+          
+          if (!isValidPassword) {
+            return null;
+          }
+
+          // Return user object for session
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
           return null;
         }
-
-        // Verify password
-        const isValidPassword = await verifyPassword(credentials.password, user.password);
-        
-        if (!isValidPassword) {
-          return null;
-        }
-
-        // Return user object for session
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role
-        };
       }
     })
   ],

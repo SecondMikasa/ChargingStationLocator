@@ -2,7 +2,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+1. **Test Database Connection**
+   ```bash
+   npm run test-db
+   ```
+
+2. **Seed the Database**
+   ```bash
+   npm run seed
+   ```
+
+3. **Start the Application**
+   ```bash
+   npm run dev
+   ```
+
+4. **Run the development server:**
 
 ```bash
 npm run dev

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RegisterSchema } from '@/lib/validation';
-import { hashPassword, createUser, normalizeEmail } from '@/lib/auth-utils';
-import { getUserByEmail, addUser } from '@/lib/mock-data';
+import { hashPassword, normalizeEmail } from '@/lib/auth-utils';
+import connectDB from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function POST(request: NextRequest) {
   try {
+    // Connect to MongoDB
+    await connectDB();
+
     const body = await request.json();
     
     // Validate request data
@@ -15,7 +19,7 @@ export async function POST(request: NextRequest) {
         { 
           success: false, 
           error: 'Validation failed',
-          details: validationResult.error
+          details: validationResult.error.message
         },
         { status: 400 }
       );
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = normalizeEmail(email);
 
     // Check if user already exists
-    const existingUser = getUserByEmail(normalizedEmail);
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return NextResponse.json(
         { 
@@ -39,25 +43,21 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create new user
-    const newUser = createUser({
+    // Create new user in MongoDB
+    const newUser = new User({
       name,
       email: normalizedEmail,
       password: hashedPassword,
       role: 'user'
     });
 
-    // Add user to mock database
-    addUser({
-      ...newUser,
-      devices: [] // Initialize empty devices array
-    });
+    await newUser.save();
 
     // Return success response (without password)
     return NextResponse.json({
       success: true,
       user: {
-        id: newUser.id,
+        id: newUser._id.toString(),
         name: newUser.name,
         email: newUser.email,
         role: newUser.role
