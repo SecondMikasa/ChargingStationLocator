@@ -1,6 +1,8 @@
 # Implementation Plan
 
-- [-] 1. Set up project foundation and core types
+- [x] 1. Set up project foundation and core types
+
+
 
 
 
