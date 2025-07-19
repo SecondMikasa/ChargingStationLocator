@@ -40,9 +40,4 @@ const UserDeviceSchema = new Schema<IUserDevice>({
   timestamps: true,
 });
 
-// Create indexes
-UserDeviceSchema.index({ userId: 1 });
-UserDeviceSchema.index({ vehicleId: 1 });
-UserDeviceSchema.index({ userId: 1, vehicleId: 1 });
-
 export default mongoose.models.UserDevice || mongoose.model<IUserDevice>('UserDevice', UserDeviceSchema);

@@ -1,11 +1,14 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from "next/navigation";
+import mongoose from "mongoose";
 import Link from "next/link";
 import { BatteryMonitor } from "@/components/battery/battery-monitor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Battery, MapPin, History, Settings } from "lucide-react";
+import connectDB from "@/lib/mongodb";
+import UserDevice from "@/models/UserDevice";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -13,6 +16,11 @@ export default async function DashboardPage() {
   if (!session) {
     redirect("/login");
   }
+
+  await connectDB()
+
+  const userDevice = await UserDevice.findOne({ userId: new mongoose.Types.ObjectId(session.user.id) })
+  const vehicleId = userDevice ? userDevice.vehicleId : null
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -87,6 +95,10 @@ export default async function DashboardPage() {
                 <div>
                   <div className="text-sm font-medium text-gray-500">Email</div>
                   <div className="text-sm">{session.user.email}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-500">User Id</div>
+                  <div className="text-sm">{session.user.id}</div>
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-500">Role</div>

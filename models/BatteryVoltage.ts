@@ -53,10 +53,4 @@ const BatteryVoltageSchema = new Schema<IBatteryVoltage>({
   timestamps: true,
 });
 
-// Create indexes for efficient queries
-BatteryVoltageSchema.index({ userId: 1, timestamp: -1 });
-BatteryVoltageSchema.index({ deviceId: 1, timestamp: -1 });
-BatteryVoltageSchema.index({ vehicleId: 1, timestamp: -1 });
-BatteryVoltageSchema.index({ timestamp: -1 });
-
 export default mongoose.models.BatteryVoltage || mongoose.model<IBatteryVoltage>('BatteryVoltage', BatteryVoltageSchema);

@@ -63,7 +63,4 @@ const ChargingStationSchema = new Schema<IChargingStation>({
   timestamps: true,
 });
 
-// Create geospatial index for location-based queries
-ChargingStationSchema.index({ latitude: 1, longitude: 1 });
-
 export default mongoose.models.ChargingStation || mongoose.model<IChargingStation>('ChargingStation', ChargingStationSchema);
