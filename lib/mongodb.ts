@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+// Load environment variables if not already loaded (for scripts)
+if (!process.env.MONGODB_URI && typeof window === 'undefined') {
+  try {
+    require('dotenv').config({ path: '.env.local' });
+  } catch (e) {
+    // dotenv might not be available in production
+  }
+}
+
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
