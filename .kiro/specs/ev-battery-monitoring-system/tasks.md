@@ -39,20 +39,41 @@
     - Store user data in mock database with proper role assignment
     - _Requirements: 1.1, 1.2_
 
-- [ ] 3. Build NextAuth.js UI components and session management
-  - [ ] 3.1 Set up NextAuth session provider
+- [-] 3. Build NextAuth.js UI components and session management
+
+
+
+  - [x] 3.1 Set up NextAuth session provider
+
+
     - Wrap app with NextAuth SessionProvider in layout
     - Configure client-side session management
     - Add TypeScript declarations for extended session types
     - _Requirements: 1.7, 2.1_
 
-  - [ ] 3.2 Create registration form component
+  - [x] 3.2 Create registration form component
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     - Build SignUpForm with name, email, password, and confirm password fields
     - Add form validation using React Hook Form and Zod
     - Integrate with custom registration API and auto-signin after registration
     - _Requirements: 1.1, 1.2_
 
-  - [ ] 3.3 Create signin form component
+  - [x] 3.3 Create signin form component
+
     - Build SignInForm using NextAuth signIn function
     - Add form validation and error handling for authentication
     - Implement redirect logic after successful signin

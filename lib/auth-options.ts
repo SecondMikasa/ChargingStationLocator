@@ -2,7 +2,6 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { verifyPassword } from './auth-utils';
 import { mockUsers } from './mock-data';
-import { User } from '@/types/auth';
 
 export const authOptions: NextAuthOptions = {
   providers: [

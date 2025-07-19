@@ -30,6 +30,15 @@ export const mockUsers: User[] = [
     role: 'user',
     createdAt: new Date('2024-01-15'),
     devices: []
+  },
+  {
+    id: 'admin-1',
+    email: 'admin@example.com',
+    name: 'Admin User',
+    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5uIoO', // hashed 'password123'
+    role: 'admin',
+    createdAt: new Date('2024-01-01'),
+    devices: []
   }
 ];
 
