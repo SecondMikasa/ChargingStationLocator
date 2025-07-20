@@ -217,7 +217,13 @@
 
 
 
-  - [ ] 7.4 Create charging stations page
+  - [x] 7.4 Create charging stations page
+
+
+
+
+
+
     - Build stations page with geolocation request
     - Integrate StationList and StationMap components
     - Add loading states and location permission handling

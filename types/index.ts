@@ -2,6 +2,7 @@
 export * from './auth';
 export * from './battery';
 export * from './station';
+export * from './queue';
 
 // API response types
 export interface ApiResponse<T = any> {
