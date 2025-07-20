@@ -1,6 +1,7 @@
 // Charging station types
 export interface ChargingStation {
-  id: string;
+  id?: string;
+  _id?: string | { toString(): string }; // MongoDB ObjectId
   name: string;
   latitude: number;
   longitude: number;
@@ -12,6 +13,8 @@ export interface ChargingStation {
     open: string;
     close: string;
   };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface StationSearchParams {

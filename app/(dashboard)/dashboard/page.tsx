@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const vehicleId = userDevice ? userDevice.vehicleId : null
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -34,13 +34,12 @@ export default async function DashboardPage() {
             Welcome back, {session.user.name}! Monitor your battery status and find charging stations.
           </p>
         </div>
-
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Battery Status */}
           <div className="lg:col-span-2 space-y-6">
             {/* Battery Monitor with Alert and Display */}
-            <BatteryMonitor className="w-full" />
+            <BatteryMonitor className="w-full" vehicleId={vehicleId} />
 
             {/* Quick Actions */}
             <Card>

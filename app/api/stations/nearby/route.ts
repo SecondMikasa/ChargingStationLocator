@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import connectDB from '@/lib/mongodb';
 import ChargingStation from '@/models/ChargingStation';
-import { z } from 'zod';
+import { calculateDistance } from '@/lib/geo-utils';
 
 // Validation schema for query parameters
 const NearbyStationsSchema = z.object({
@@ -20,108 +21,144 @@ const NearbyStationsSchema = z.object({
     return num;
   }),
   radius: z.string().optional().transform((val) => {
-    if (!val) return 10; // Default 10km radius
+    if (!val) return 50; // Default radius of 50km
     const num = parseFloat(val);
-    if (isNaN(num) || num <= 0 || num > 100) {
+    if (isNaN(num) || num <= 0 || num > 200) {
       throw new Error('Invalid radius');
     }
     return num;
   }),
   limit: z.string().optional().transform((val) => {
-    if (!val) return 20; // Default 20 results
+    if (!val) return 20; // Default limit of 20 stations
     const num = parseInt(val);
     if (isNaN(num) || num <= 0 || num > 100) {
       throw new Error('Invalid limit');
     }
     return num;
-  }),
+  })
 });
-
-// Calculate distance between two points using Haversine formula
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c;
-  return Math.round(distance * 100) / 100; // Round to 2 decimal places
-}
 
 export async function GET(request: NextRequest) {
   try {
-    // Parse and validate query parameters
+    // Connect to the database
+    await connectDB();
+    
     const { searchParams } = new URL(request.url);
-    const queryParams = {
+
+    // Extract and validate query parameters
+    const rawParams = {
       lat: searchParams.get('lat'),
       lng: searchParams.get('lng'),
       radius: searchParams.get('radius'),
-      limit: searchParams.get('limit'),
+      limit: searchParams.get('limit')
     };
 
-    // Validate required parameters
-    if (!queryParams.lat || !queryParams.lng) {
+    console.log('API received params:', rawParams);
+
+    // Check required parameters
+    if (!rawParams.lat || !rawParams.lng) {
       return NextResponse.json(
-        { error: 'Latitude and longitude are required' },
+        {
+          error: 'Missing required parameters: lat and lng are required',
+          stations: [],
+          userLocation: null
+        },
         { status: 400 }
       );
     }
 
-    const validatedParams = NearbyStationsSchema.parse(queryParams);
-    const { lat, lng, radius, limit } = validatedParams;
-
-    // Connect to database
-    await connectDB();
-
-    // Get all stations (we'll filter by distance in memory for simplicity)
-    // In a production app, you'd use MongoDB's geospatial queries
+    // Validate parameters
+    const validatedParams = NearbyStationsSchema.parse(rawParams);
+    console.log('Validated params:', validatedParams);
+    
+    // Get all stations from the database
     const allStations = await ChargingStation.find({}).lean();
-
-    // Calculate distances and filter by radius
-    const stationsWithDistance = allStations
-      .map((station) => {
-        const distance = calculateDistance(lat, lng, station.latitude, station.longitude);
+    console.log(`Found ${allStations.length} stations in database`);
+    
+    if (allStations.length === 0) {
+      console.log('No stations found in database');
+      return NextResponse.json({
+        stations: [],
+        userLocation: {
+          latitude: validatedParams.lat,
+          longitude: validatedParams.lng
+        },
+        searchParams: {
+          radius: validatedParams.radius,
+          limit: validatedParams.limit,
+          resultsCount: 0
+        },
+        debug: {
+          message: 'No stations found in database. Please run the seed script.',
+          totalStationsInDB: 0
+        }
+      });
+    }
+    
+    // Calculate distance for each station and filter by radius
+    const stations = allStations
+      .map(station => {
+        const distance = calculateDistance(
+          validatedParams.lat,
+          validatedParams.lng,
+          station.latitude,
+          station.longitude
+        );
+        
         return {
-          id: station._id as string,
-          name: station.name,
-          latitude: station.latitude,
-          longitude: station.longitude,
-          pricePerKwh: station.pricePerKwh,
-          queueLength: station.queueLength,
-          distance,
-          amenities: station.amenities || [],
-          operatingHours: station.operatingHours,
+          ...station,
+          id: station._id as string, // Convert MongoDB _id to string id
+          distance
         };
       })
-      .filter((station) => station.distance <= radius)
-      .sort((a, b) => a.distance - b.distance) // Sort by distance (closest first)
-      .slice(0, limit);
+      .filter(station => station.distance <= validatedParams.radius)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, validatedParams.limit);
 
+    console.log(`Returning ${stations.length} stations within ${validatedParams.radius}km`);
+
+    // Return response with stations and user location context
     return NextResponse.json({
-      stations: stationsWithDistance,
+      stations,
       userLocation: {
-        latitude: lat,
-        longitude: lng,
+        latitude: validatedParams.lat,
+        longitude: validatedParams.lng
       },
-      searchRadius: radius,
-      totalFound: stationsWithDistance.length,
+      searchParams: {
+        radius: validatedParams.radius,
+        limit: validatedParams.limit,
+        resultsCount: stations.length
+      },
+      debug: {
+        totalStationsInDB: allStations.length,
+        stationsWithinRadius: stations.length
+      }
     });
 
   } catch (error) {
     console.error('Error fetching nearby stations:', error);
-    
+
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid parameters', details: error.message },
+        {
+          error: 'Invalid parameters',
+          details: error.message,
+          stations: [],
+          userLocation: null
+        },
         { status: 400 }
       );
     }
 
+    // Handle other errors
     return NextResponse.json(
-      { error: 'Failed to fetch nearby stations' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stations: [],
+        userLocation: null
+      },
       { status: 500 }
     );
   }
