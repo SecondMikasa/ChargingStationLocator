@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useIsBrowser } from '@/hooks/use-is-browser';
 import { StationMap } from '@/components/stations/station-map';
 import { StationList } from '@/components/stations/station-list';
 import { ChargingStation } from '@/types/station';
@@ -23,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
 export default function StationsPage() {
+  const isBrowser = useIsBrowser();
   const [stations, setStations] = useState<ChargingStation[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | undefined>();
   const [loading, setLoading] = useState(true);
@@ -74,13 +76,22 @@ export default function StationsPage() {
   }, [radius, limit]);
 
   // Default location (Delhi, India - Connaught Place)
-  const defaultLocation = {
+  const defaultLocation = useMemo(() => ({
     latitude: 28.6139,
     longitude: 77.2090
-  };
+  }), []);
 
   // Get user location
   const getUserLocation = useCallback(() => {
+    // Set initial loading state
+    setLoading(true);
+    
+    if (!isBrowser) {
+      // If we're on the server, use default location
+      setUserLocation(defaultLocation);
+      return;
+    }
+    
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -90,38 +101,42 @@ export default function StationsPage() {
           };
           setUserLocation(userLoc);
           setLocationPermission('granted');
-          setError(null); // Clear any previous errors
+          setError(null);
           fetchStations(userLoc);
         },
         (err) => {
           console.error('Error getting location:', err);
           setError('Could not get your location. Using default location (Delhi, India).');
           setLocationPermission('denied');
-
-          // Fallback to default location
           setUserLocation(defaultLocation);
           fetchStations(defaultLocation);
         },
         {
-          timeout: 10000, // 10 second timeout
+          timeout: 10000,
           enableHighAccuracy: false,
-          maximumAge: 300000 // 5 minutes
+          maximumAge: 300000
         }
       );
     } else {
       setError('Geolocation is not supported by your browser. Using default location (Delhi, India).');
       setLocationPermission('denied');
-
-      // Fallback to default location
       setUserLocation(defaultLocation);
       fetchStations(defaultLocation);
     }
-  }, [defaultLocation, fetchStations]);
+  }, [isBrowser, defaultLocation, fetchStations]);
 
-  // Initial load
+  // Initial load - only run on client side
   useEffect(() => {
-    getUserLocation();
-  }, [getUserLocation]);
+    // Set initial loading state
+    setLoading(true);
+    
+    if (isBrowser) {
+      getUserLocation();
+    } else {
+      // If we're on the server, use default location
+      setUserLocation(defaultLocation);
+    }
+  }, [isBrowser, getUserLocation, defaultLocation]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -163,6 +178,24 @@ export default function StationsPage() {
       })
     );
   };
+
+  // Show a loading state if we're not in a browser environment yet
+  if (!isBrowser) {
+    return (
+      <div className="container mx-auto py-6 px-4 md:px-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Nearby Charging Stations</h1>
+        </div>
+        
+        <Card className="w-full h-[400px] flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading stations...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
