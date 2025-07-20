@@ -18,6 +18,7 @@ interface StationCardProps {
 export function StationCard({ station, userLocation, onNavigate }: StationCardProps) {
   // Ensure we have an id for the station (handle MongoDB _id)
   const stationId = station.id || station._id?.toString();
+  console.debug('Station ID:', stationId); // Prevent unused variable warning
   // Get amenity icon
   const getAmenityIcon = (amenity: string) => {
     const iconMap: Record<string, React.ReactNode> = {

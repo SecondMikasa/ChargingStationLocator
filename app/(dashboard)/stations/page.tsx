@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StationMap } from '@/components/stations/station-map';
 import { StationList } from '@/components/stations/station-list';
 import { ChargingStation } from '@/types/station';
@@ -36,7 +36,7 @@ export default function StationsPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Load stations with user location
-  const fetchStations = async (location: { latitude: number; longitude: number }) => {
+  const fetchStations = useCallback(async (location: { latitude: number; longitude: number }) => {
     try {
       setRefreshing(true);
       setError(null); // Clear previous errors
@@ -71,7 +71,7 @@ export default function StationsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [radius, limit]);
 
   // Default location (Delhi, India - Connaught Place)
   const defaultLocation = {
@@ -80,7 +80,7 @@ export default function StationsPage() {
   };
 
   // Get user location
-  const getUserLocation = () => {
+  const getUserLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -116,12 +116,12 @@ export default function StationsPage() {
       setUserLocation(defaultLocation);
       fetchStations(defaultLocation);
     }
-  };
+  }, [defaultLocation, fetchStations]);
 
   // Initial load
   useEffect(() => {
     getUserLocation();
-  }, []);
+  }, [getUserLocation]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -146,14 +146,14 @@ export default function StationsPage() {
   const handleStationSelect = (station: ChargingStation) => {
     // Log the selected station for debugging
     console.log('Selected station:', station);
-    
+
     // Don't automatically switch to list view - let the popup show instead
     // The user can manually switch to list view if they want to see more details
   };
 
   const handleQueueUpdate = (stationId: string, newQueueLength: number) => {
     // Update the stations array with the new queue length
-    setStations(prevStations => 
+    setStations(prevStations =>
       prevStations.map(station => {
         const currentStationId = station.id || station._id?.toString();
         if (currentStationId === stationId) {

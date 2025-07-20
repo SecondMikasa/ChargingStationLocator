@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth-options';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is authenticated
@@ -21,9 +21,10 @@ export async function POST(
     // Connect to the database
     await connectDB();
     
-    const stationId = params.id;
+    const resolvedParams = await params;
+    const stationId = resolvedParams.id;
     
-    // Find the station and increment queue length
+    // Find the station and incremen
     const station = await ChargingStation.findByIdAndUpdate(
       stationId,
       { $inc: { queueLength: 1 } },
@@ -57,7 +58,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is authenticated
@@ -72,7 +73,8 @@ export async function DELETE(
     // Connect to the database
     await connectDB();
     
-    const stationId = params.id;
+    const resolvedParams = await params;
+    const stationId = resolvedParams.id;
     
     // Find the station and decrement queue length (but not below 0)
     const station = await ChargingStation.findById(stationId);

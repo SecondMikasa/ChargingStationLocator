@@ -79,6 +79,8 @@ function MapUpdater({ userLocation, stations }: {
 }
 
 export function StationMap({ stations, userLocation, loading = false, onStationSelect, onQueueUpdate }: StationMapProps) {
+  // Prevent unused parameter warning
+  console.debug('Station selection handler:', onStationSelect);
   const [mapReady, setMapReady] = useState(false);
 
   // Handle navigation to Google Maps

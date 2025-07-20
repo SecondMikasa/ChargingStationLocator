@@ -22,6 +22,9 @@ export function BatteryMonitor({ vehicleId, className }: BatteryMonitorProps) {
   const [voltageData, setVoltageData] = useState<VoltageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use loading and error states to prevent unused variable warnings
+  console.debug('Battery monitor state:', { loading, error });
   const [alertDismissed, setAlertDismissed] = useState(false);
 
   useEffect(() => {

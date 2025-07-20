@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { StationMap } from './station-map';
 import { ChargingStation } from '@/types/station';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+// import { Button } from '@/components/ui/button'; // Unused for now
 
 export default function MapTest() {
   const [stations, setStations] = useState<ChargingStation[]>([]);

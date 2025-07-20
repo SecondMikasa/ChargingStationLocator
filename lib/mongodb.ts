@@ -3,8 +3,9 @@ import mongoose from 'mongoose';
 // Load environment variables if not already loaded (for scripts)
 if (!process.env.MONGODB_URI && typeof window === 'undefined') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('dotenv').config({ path: '.env.local' });
-  } catch (e) {
+  } catch {
     // dotenv might not be available in production
   }
 }

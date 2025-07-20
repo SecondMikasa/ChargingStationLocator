@@ -113,12 +113,12 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
           voltage: reading.voltage,
           percentage: reading.percentage,
           status: reading.status,
-          formattedTime: date.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+          formattedTime: date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
           }),
-          formattedDate: date.toLocaleDateString('en-US', { 
-            month: 'short', 
+          formattedDate: date.toLocaleDateString('en-US', {
+            month: 'short',
             day: 'numeric',
             ...(selectedPeriod === 'month' && { year: '2-digit' })
           }),
@@ -129,12 +129,12 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
   // Calculate trend
   const trend = React.useMemo(() => {
     if (chartData.length < 2) return null;
-    
+
     const first = chartData[0].voltage;
     const last = chartData[chartData.length - 1].voltage;
     const change = last - first;
     const percentChange = ((change / first) * 100);
-    
+
     return {
       direction: change > 0.1 ? 'up' : change < -0.1 ? 'down' : 'stable',
       change: Math.abs(change),
@@ -143,17 +143,17 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
   }, [chartData]);
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartDataPoint }>; label?: string }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const date = new Date(data.timestamp);
-      
+
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="text-sm font-medium text-gray-900">
-            {date.toLocaleDateString('en-US', { 
+            {date.toLocaleDateString('en-US', {
               weekday: 'short',
-              month: 'short', 
+              month: 'short',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit'
@@ -166,13 +166,13 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
             <p className="text-sm">
               <span className="font-medium">Battery:</span> {data.percentage}%
             </p>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
                 'text-xs',
                 data.status === 'critical' ? 'bg-red-100 text-red-800 border-red-200' :
-                data.status === 'low' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                'bg-green-100 text-green-800 border-green-200'
+                  data.status === 'low' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                    'bg-green-100 text-green-800 border-green-200'
               )}
             >
               {data.status.charAt(0).toUpperCase() + data.status.slice(1)}
@@ -187,10 +187,10 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
   // Get line color based on overall status
   const getLineColor = () => {
     if (!chartData.length) return '#3b82f6';
-    
+
     const criticalCount = chartData.filter(d => d.status === 'critical').length;
     const lowCount = chartData.filter(d => d.status === 'low').length;
-    
+
     if (criticalCount > chartData.length * 0.3) return '#dc2626'; // Red
     if (lowCount > chartData.length * 0.3) return '#f59e0b'; // Yellow
     return '#10b981'; // Green
@@ -285,7 +285,7 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
             </SelectContent>
           </Select>
         </div>
-        
+
         {/* Device info and trend */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{historyData.deviceInfo.deviceName}</span>
@@ -297,8 +297,8 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
               <span className={cn(
                 'text-xs',
                 trend.direction === 'up' ? 'text-green-600' :
-                trend.direction === 'down' ? 'text-red-600' :
-                'text-gray-600'
+                  trend.direction === 'down' ? 'text-red-600' :
+                    'text-gray-600'
               )}>
                 {trend.direction === 'stable' ? 'Stable' : `${trend.change.toFixed(1)}V`}
               </span>
@@ -306,7 +306,7 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-4">
           {/* Chart stats */}
@@ -336,23 +336,23 @@ export function VoltageChart({ vehicleId, className, defaultPeriod = 'day' }: Vo
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis 
+                <XAxis
                   dataKey={selectedPeriod === 'day' ? 'formattedTime' : 'formattedDate'}
                   tick={{ fontSize: 12 }}
                   tickLine={{ stroke: '#e5e7eb' }}
                 />
-                <YAxis 
+                <YAxis
                   domain={['dataMin - 1', 'dataMax + 1']}
                   tick={{ fontSize: 12 }}
                   tickLine={{ stroke: '#e5e7eb' }}
                   label={{ value: 'Voltage (V)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                
+
                 {/* Reference lines for thresholds */}
                 <ReferenceLine y={48} stroke="#f59e0b" strokeDasharray="5 5" opacity={0.7} />
                 <ReferenceLine y={45} stroke="#dc2626" strokeDasharray="5 5" opacity={0.7} />
-                
+
                 <Line
                   type="monotone"
                   dataKey="voltage"
