@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import ChargingSession from '@/models/ChargingSession';
 import ChargingStation from '@/models/ChargingStation';
-import { connectToDatabase } from '@/lib/mongodb';
+import connectDB from '@/lib/mongodb';
 import { SessionHistoryResponse } from '@/types/queue';
 
 export async function GET(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Connect to database
-    await connectToDatabase();
+    await connectDB();
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -57,11 +57,11 @@ export async function GET(request: NextRequest) {
       _id: { $in: stationIds }
     }).lean();
 
-    const stationMap = new Map(stations.map(station => [station._id.toString(), station]));
+    const stationMap = new Map(stations.map(station => [station._id as string, station]));
 
     // Format sessions with station information
     const formattedSessions = sessions.map(session => ({
-      id: session._id.toString(),
+      id: session._id as string,
       userId: session.userId,
       stationId: session.stationId,
       stationName: stationMap.get(session.stationId)?.name,

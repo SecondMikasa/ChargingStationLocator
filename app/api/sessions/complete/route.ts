@@ -11,6 +11,7 @@ import {
   createQueueAuditRecord,
   formatSessionForResponse 
 } from '@/lib/session-utils';
+import webSocketService from '@/lib/websocket-service';
 import mongoose from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -115,6 +116,41 @@ export async function POST(request: NextRequest) {
       // Get the updated session data
       const updatedSession = await ChargingSession.findById(sessionId);
       const updatedStation = await ChargingStation.findById(stationId);
+
+      // Broadcast queue update to WebSocket clients
+      webSocketService.broadcastQueueUpdate(
+        stationId,
+        updatedStation!.queueLength,
+        session.user.id
+      );
+
+      // Send notification to users in the queue about position changes
+      const remainingSessions = await ChargingSession.find({
+        stationId: stationId,
+        status: 'active'
+      }).sort({ queuePosition: 1 });
+
+      // Notify the next person in line if queue is not empty
+      if (remainingSessions.length > 0) {
+        const nextSession = remainingSessions[0];
+        if (nextSession.queuePosition === 1) {
+          webSocketService.broadcastUserNotification(nextSession.userId, {
+            sessionId: nextSession._id.toString(),
+            notificationType: 'next_in_line',
+            message: "You're next in line! The charging station will be available soon.",
+            priority: 'high'
+          });
+        }
+      }
+
+      // If queue is now empty, broadcast station availability
+      if (updatedStation!.queueLength === 0) {
+        webSocketService.broadcastQueueUpdate(
+          stationId,
+          0,
+          session.user.id
+        );
+      }
 
       const response: CompleteSessionResponse = {
         success: true,
