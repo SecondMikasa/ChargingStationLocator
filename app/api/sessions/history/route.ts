@@ -1,99 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-options';
-import connectDB from '@/lib/mongodb';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import ChargingSession from '@/models/ChargingSession';
 import ChargingStation from '@/models/ChargingStation';
+import { connectToDatabase } from '@/lib/mongodb';
 import { SessionHistoryResponse } from '@/types/queue';
-import { formatSessionForResponse, validatePagination } from '@/lib/session-utils';
 
 export async function GET(request: NextRequest) {
   try {
-    // Connect to MongoDB
-    await connectDB();
-
-    // Get the session to validate user authentication
+    // Get user session
     const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user) {
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Unauthorized. Please log in to view session history.',
-          code: 'UNAUTHORIZED'
-        },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    // Get query parameters for pagination
+    // Connect to database
+    await connectToDatabase();
+
+    // Get query parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    
+    const limit = parseInt(searchParams.get('limit') || '5');
+    const skip = (page - 1) * limit;
+
     // Validate pagination parameters
-    const paginationValidation = validatePagination(page, limit);
-    if (!paginationValidation.isValid) {
+    if (page < 1 || limit < 1 || limit > 50) {
       return NextResponse.json(
-        {
-          success: false,
-          error: paginationValidation.error,
-          code: 'INVALID_PAGINATION'
-        },
+        { error: 'Invalid pagination parameters' },
         { status: 400 }
       );
     }
 
-    const normalizedPage = paginationValidation.normalizedPage;
-    const normalizedLimit = paginationValidation.normalizedLimit;
-    const skip = (normalizedPage - 1) * normalizedLimit;
-
-    // Get total count of completed sessions for pagination
-    const totalSessions = await ChargingSession.countDocuments({
-      userId: session.user.id,
-      status: 'completed'
-    });
-
-    // Find completed charging sessions for the user with pagination
-    const completedSessions = await ChargingSession.find({
-      userId: session.user.id,
-      status: 'completed'
-    })
-    .sort({ completedAt: -1 }) // Most recent first
-    .skip(skip)
-    .limit(normalizedLimit);
-
-    // Get station details for each session
-    const sessionsWithStationInfo = await Promise.all(
-      completedSessions.map(async (chargingSession) => {
-        const station = await ChargingStation.findById(chargingSession.stationId);
-        return formatSessionForResponse(chargingSession, station?.name);
+    // Find completed sessions for the user
+    const [sessions, totalCount] = await Promise.all([
+      ChargingSession.find({
+        userId: session.user.email,
+        status: { $in: ['completed', 'cancelled'] }
       })
-    );
+      .sort({ completedAt: -1, updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+      
+      ChargingSession.countDocuments({
+        userId: session.user.email,
+        status: { $in: ['completed', 'cancelled'] }
+      })
+    ]);
+
+    // Get station information for sessions
+    const stationIds = [...new Set(sessions.map(s => s.stationId))];
+    const stations = await ChargingStation.find({
+      _id: { $in: stationIds }
+    }).lean();
+
+    const stationMap = new Map(stations.map(station => [station._id.toString(), station]));
+
+    // Format sessions with station information
+    const formattedSessions = sessions.map(session => ({
+      id: session._id.toString(),
+      userId: session.userId,
+      stationId: session.stationId,
+      stationName: stationMap.get(session.stationId)?.name,
+      joinedAt: session.joinedAt,
+      completedAt: session.completedAt,
+      status: session.status,
+      queuePosition: session.queuePosition,
+      estimatedWaitTime: session.estimatedWaitTime,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+    }));
 
     const response: SessionHistoryResponse = {
-      sessions: sessionsWithStationInfo,
+      sessions: formattedSessions,
       pagination: {
-        page: normalizedPage,
-        limit: normalizedLimit,
-        total: totalSessions
-      }
+        page,
+        limit,
+        total: totalCount,
+      },
     };
 
-    return NextResponse.json({
-      success: true,
-      ...response
-    });
-
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching session history:', error);
-    
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Internal server error. Please try again later.',
-        code: 'INTERNAL_ERROR'
-      },
+      { error: 'Failed to fetch session history' },
       { status: 500 }
     );
   }
