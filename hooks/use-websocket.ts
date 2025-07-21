@@ -343,7 +343,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     return () => {
       disconnect();
     };
-  }, [autoConnect, connect, disconnect]);
+  }, [autoConnect]); // Remove connect and disconnect from dependencies
 
   // Re-authenticate when session changes
   useEffect(() => {
