@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import ChargingStation, { IChargingStation } from '../models/ChargingStation';
 import ChargingSession, { IChargingSession } from '../models/ChargingSession';
 import QueueUpdate, { IQueueUpdate } from '../models/QueueUpdate';
+import { NotificationService } from './notification-service';
 import connectDB from './mongodb';
 
 /**
@@ -156,10 +157,12 @@ export class QueueUpdateService {
    * Implements retry logic for handling write conflicts
    * 
    * @param stationId - The ID of the station to update queue positions for
+   * @param completedPosition - The position that was completed (for notifications)
    * @param retryAttempt - Current retry attempt (used internally for recursion)
    */
   public static async updateQueuePositions(
     stationId: string,
+    completedPosition: number,
     retryAttempt = 0
   ): Promise<void> {
     await connectDB();
@@ -175,9 +178,17 @@ export class QueueUpdateService {
       // Update queue positions one by one to avoid transaction issues
       for (let i = 0; i < activeSessions.length; i++) {
         const session = activeSessions[i];
-        session.queuePosition = i + 1;
+        const newPosition = i + 1;
+        session.queuePosition = newPosition;
+        
+        // Update estimated wait time based on new position
+        session.estimatedWaitTime = await this.calculateEstimatedWaitTime(newPosition, stationId);
+        
         await session.save();
       }
+      
+      // Generate notifications for users whose positions changed
+      await NotificationService.updateQueuePositionNotifications(stationId, completedPosition);
     } catch (error: unknown) {
       // Check if this is a write conflict error that we can retry
       const mongoError = error as MongoDBError;
@@ -198,7 +209,7 @@ export class QueueUpdateService {
         await new Promise(resolve => setTimeout(resolve, delayMs));
         
         // Retry the operation with incremented retry counter
-        return this.updateQueuePositions(stationId, retryAttempt + 1);
+        return this.updateQueuePositions(stationId, completedPosition, retryAttempt + 1);
       }
       
       // Log the error
@@ -210,11 +221,28 @@ export class QueueUpdateService {
   }
   
   /**
+   * Calculates estimated wait time based on queue position and average session duration
+   * 
+   * @param queuePosition - The position in the queue
+   * @param stationId - The ID of the station for station-specific calculations
+   * @returns Estimated wait time in minutes
+   */
+  private static async calculateEstimatedWaitTime(
+    queuePosition: number,
+    stationId: string
+  ): Promise<number> {
+    // Import from session-utils to avoid circular dependencies
+    const { calculateEstimatedWaitTime } = await import('./session-utils');
+    return calculateEstimatedWaitTime(queuePosition, stationId);
+  }
+  
+  /**
    * Complete a charging session and update all related data
    * This is a higher-level method that combines multiple operations:
    * 1. Completes the session
    * 2. Reduces the queue count
    * 3. Updates queue positions for remaining sessions
+   * 4. Generates notifications for affected users
    * 
    * @param sessionId - The ID of the session being completed
    * @param userId - The ID of the user completing the session
@@ -231,8 +259,11 @@ export class QueueUpdateService {
     // First complete the session and reduce queue count
     const result = await this.completeSessionAndReduceQueue(sessionId, userId);
     
-    // Then update queue positions for remaining sessions
-    await this.updateQueuePositions(result.station._id.toString());
+    // Get the completed session's position for notification purposes
+    const completedPosition = result.session.queuePosition;
+    
+    // Then update queue positions for remaining sessions and generate notifications
+    await this.updateQueuePositions(result.station._id.toString(), completedPosition);
     
     return result;
   }

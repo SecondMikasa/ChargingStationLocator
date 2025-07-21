@@ -83,7 +83,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       if (!response.ok) {
         throw new Error('Failed to get WebSocket endpoint');
       }
-      
+
       const data = await response.json();
       return data.wsEndpoint || null;
     } catch (error) {
@@ -106,7 +106,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     if (heartbeatTimeoutRef.current) {
       clearInterval(heartbeatTimeoutRef.current);
     }
-    
+
     heartbeatTimeoutRef.current = setInterval(sendHeartbeat, heartbeatInterval);
   }, [sendHeartbeat, heartbeatInterval]);
 
@@ -130,7 +130,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           setIsConnecting(false);
           setError(null);
           reconnectAttemptsRef.current = 0;
-          
+
           // Authenticate if user is logged in
           if (session?.user?.id) {
             wsRef.current?.send(JSON.stringify({
@@ -158,7 +158,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
         case 'AUTHENTICATION_SUCCESS':
           console.log('WebSocket authentication successful');
-          
+
           // Resubscribe to stations after authentication
           subscribedStations.forEach(stationId => {
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -218,7 +218,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       // Get WebSocket endpoint from API if not already cached
       if (!wsEndpointRef.current) {
         wsEndpointRef.current = await fetchWebSocketEndpoint();
-        
+
         if (!wsEndpointRef.current) {
           throw new Error('Failed to get WebSocket endpoint');
         }
@@ -244,7 +244,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`);
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
@@ -298,7 +298,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     } else {
       // Store subscription intent to resubscribe when connection is established
       setSubscribedStations(prev => new Set(prev).add(stationId));
-      
+
       // If not connected, try to connect
       if (!isConnected && !isConnecting) {
         connect();
@@ -315,7 +315,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         stationId
       }));
     }
-    
+
     // Remove from local subscriptions regardless of connection state
     setSubscribedStations(prev => {
       const newSet = new Set(prev);

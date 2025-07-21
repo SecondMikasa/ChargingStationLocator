@@ -104,8 +104,72 @@ export async function validateSessionCompletion(
 
 /**
  * Calculates estimated wait time based on queue position and average session duration
+ * 
+ * @param queuePosition - The position in the queue
+ * @param stationId - Optional station ID to use station-specific average duration
+ * @returns Estimated wait time in minutes
  */
-export function calculateEstimatedWaitTime(queuePosition: number): number {
+export async function calculateEstimatedWaitTime(
+  queuePosition: number,
+  stationId?: string
+): Promise<number> {
+  // If user is first in queue, they can start immediately
+  if (queuePosition <= 1) {
+    return 0;
+  }
+
+  // Default average charging session duration in minutes
+  let averageSessionDuration = 45;
+
+  // If stationId is provided, try to get station-specific average duration
+  if (stationId) {
+    try {
+      // Get completed sessions for this station in the last 7 days
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const completedSessions = await ChargingSession.find({
+        stationId,
+        status: 'completed',
+        completedAt: { $gte: oneWeekAgo }
+      });
+
+      if (completedSessions.length > 0) {
+        // Calculate average duration from completed sessions
+        const totalDuration = completedSessions.reduce((sum, session) => {
+          if (session.completedAt && session.joinedAt) {
+            const durationMs = session.completedAt.getTime() - session.joinedAt.getTime();
+            const durationMinutes = durationMs / (1000 * 60);
+            return sum + durationMinutes;
+          }
+          return sum;
+        }, 0);
+
+        if (totalDuration > 0) {
+          averageSessionDuration = Math.round(totalDuration / completedSessions.length);
+          
+          // Sanity check - ensure the average is reasonable (between 10 and 120 minutes)
+          averageSessionDuration = Math.max(10, Math.min(120, averageSessionDuration));
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating station-specific average duration:', error);
+      // Fall back to default average duration
+    }
+  }
+
+  // Calculate wait time based on position and average duration
+  return (queuePosition - 1) * averageSessionDuration;
+}
+
+/**
+ * Calculates estimated wait time synchronously (for cases where async isn't possible)
+ * This is a simplified version that doesn't use station-specific data
+ * 
+ * @param queuePosition - The position in the queue
+ * @returns Estimated wait time in minutes
+ */
+export function calculateEstimatedWaitTimeSync(queuePosition: number): number {
   // Average charging session duration in minutes (configurable)
   const averageSessionDuration = 45;
 
