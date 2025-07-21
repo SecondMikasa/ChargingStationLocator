@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import mongoose from "mongoose";
 import Link from "next/link";
 import { BatteryMonitor } from "@/components/battery/battery-monitor";
+import { ActiveSessionsCard } from "@/components/sessions/active-sessions-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Battery, MapPin, History, Settings } from "lucide-react";
@@ -81,6 +82,9 @@ export default async function DashboardPage() {
 
           {/* Right Column - Information Cards */}
           <div className="space-y-6">
+            {/* Active Charging Sessions */}
+            <ActiveSessionsCard />
+
             {/* Account Information */}
             <Card>
               <CardHeader>

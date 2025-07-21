@@ -1,183 +1,175 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChargingSession } from '@/types/queue';
-import { Clock, Zap, MapPin, Timer, History, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { ChargingSession, SessionHistoryResponse } from '@/types/queue';
+import { formatDate, formatDuration } from '@/lib/utils';
 
 interface SessionHistoryCardProps {
-  sessions: ChargingSession[];
-  isLoading?: boolean;
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-  };
-  onPageChange: (page: number) => void;
+  className?: string;
 }
 
-export function SessionHistoryCard({ 
-  sessions, 
-  isLoading = false, 
-  pagination,
-  onPageChange
-}: SessionHistoryCardProps) {
-  // Format date to display
-  const formatDate = (date: Date): string => {
-    return new Date(date).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
+  const [sessions, setSessions] = useState<ChargingSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 5,
+    total: 0
+  });
+
+  // Fetch session history
+  const fetchSessionHistory = async (page = 1) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/sessions/history?page=${page}&limit=${pagination.limit}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch session history');
+      }
+
+      const data: SessionHistoryResponse = await response.json();
+      setSessions(data.sessions);
+      setPagination(data.pagination);
+    } catch (err) {
+      console.error('Error fetching session history:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch session history');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Calculate session duration
-  const calculateDuration = (joinedAt: Date, completedAt?: Date): string => {
-    if (!completedAt) return 'Unknown';
+  const calculateDuration = (joinedAt: Date, completedAt: Date | undefined) => {
+    if (!completedAt) return 'N/A';
     
     const start = new Date(joinedAt);
     const end = new Date(completedAt);
     const durationMs = end.getTime() - start.getTime();
-    const durationMinutes = Math.floor(durationMs / (1000 * 60));
     
-    if (durationMinutes < 60) {
-      return `${durationMinutes} min`;
-    } else {
-      const hours = Math.floor(durationMinutes / 60);
-      const remainingMinutes = durationMinutes % 60;
-      return remainingMinutes > 0 
-        ? `${hours}h ${remainingMinutes}m` 
-        : `${hours}h`;
-    }
+    return formatDuration(durationMs);
   };
 
-  // Get status badge color
-  const getStatusBadgeColor = (status: string): string => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  // Handle pagination
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > Math.ceil(pagination.total / pagination.limit)) return;
+    fetchSessionHistory(newPage);
   };
 
-  // Calculate pagination info
-  const totalPages = Math.ceil(pagination.total / pagination.limit);
-  const hasNextPage = pagination.page < totalPages;
-  const hasPrevPage = pagination.page > 1;
+  // Fetch sessions on component mount
+  useEffect(() => {
+    fetchSessionHistory();
+  }, []);
+
+  if (isLoading && sessions.length === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Charging Session History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-6">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            Error Loading History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-red-500">{error}</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="w-full">
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5 text-purple-500" />
+          <History className="h-5 w-5" />
           Charging Session History
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center py-6">
-            <div className="animate-pulse flex flex-col w-full gap-4" data-testid="loading-indicator">
-              <div className="h-20 bg-gray-200 rounded-md w-full"></div>
-              <div className="h-20 bg-gray-200 rounded-md w-full"></div>
-              <div className="h-20 bg-gray-200 rounded-md w-full"></div>
-            </div>
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="text-center py-6 text-gray-500">
-            <div className="mb-2">
-              <History className="h-12 w-12 mx-auto text-gray-400" />
-            </div>
-            <p className="text-lg font-medium">No charging session history</p>
-            <p className="text-sm mt-1">
-              Your completed charging sessions will appear here
-            </p>
+        {sessions.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <History className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
+            <p>No charging history found</p>
           </div>
         ) : (
-          <>
-            <div className="space-y-4">
-              {sessions.map((session) => (
-                <div 
-                  key={session.id} 
-                  className="border rounded-lg p-4 flex flex-col gap-3"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium">{session.stationName || `Station #${session.stationId.slice(-4)}`}</h3>
-                      <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>Completed {formatDate(session.completedAt || session.updatedAt)}</span>
-                      </div>
-                    </div>
-                    <Badge 
-                      className={getStatusBadgeColor(session.status)}
-                    >
-                      {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-                    </Badge>
+          <div className="space-y-4">
+            {sessions.map((session) => (
+              <div 
+                key={session.id} 
+                className="border rounded-lg p-4 space-y-2"
+              >
+                <div className="flex justify-between items-start">
+                  <h3 className="font-medium">{session.stationName || `Station ${session.stationId.substring(0, 8)}...`}</h3>
+                  <Badge variant="outline">Completed</Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>Duration: {calculateDuration(session.joinedAt, session.completedAt)}</span>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span>Station #{session.stationId.slice(-4)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Timer className="h-4 w-4 text-gray-500" />
-                      <span>
-                        Duration: {calculateDuration(session.joinedAt, session.completedAt)}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    <span>Completed: {session.completedAt ? formatDate(new Date(session.completedAt)) : 'N/A'}</span>
                   </div>
-                  
-                  <div className="text-xs text-gray-400 pt-2 border-t">
-                    Started: {formatDate(session.joinedAt)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                <div className="text-sm text-gray-500">
-                  Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                  {pagination.total} sessions
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(pagination.page - 1)}
-                    disabled={!hasPrevPage}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <span className="text-sm text-gray-500">
-                    Page {pagination.page} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(pagination.page + 1)}
-                    disabled={!hasNextPage}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </CardContent>
+      
+      {sessions.length > 0 && (
+        <CardFooter className="flex justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1 || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit) || isLoading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardFooter>
+      )}
     </Card>
   );
 }

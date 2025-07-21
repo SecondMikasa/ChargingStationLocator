@@ -4,169 +4,142 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Users, Clock, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { ChargingSession } from '@/types/queue';
-import { Clock, Zap, MapPin, Timer, CheckCircle } from 'lucide-react';
+import { useActiveSessions } from '@/hooks/use-active-sessions';
+import { formatDate } from '@/lib/utils';
 
 interface ActiveSessionsCardProps {
-  sessions: ChargingSession[];
-  isLoading?: boolean;
-  onCompleteSession: (sessionId: string, stationId: string) => Promise<void>;
+  className?: string;
 }
 
-export function ActiveSessionsCard({ 
-  sessions, 
-  isLoading = false, 
-  onCompleteSession 
-}: ActiveSessionsCardProps) {
-  const [completingSession, setCompletingSession] = useState<string | null>(null);
-  const [sessionToConfirm, setSessionToConfirm] = useState<ChargingSession | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
+  const { sessions, isLoading, error, completeSession } = useActiveSessions();
+  const [sessionToComplete, setSessionToComplete] = useState<ChargingSession | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
 
-  // Handle session completion confirmation
-  const handleConfirmComplete = async () => {
-    if (!sessionToConfirm) return;
+  // Handle session completion
+  const handleCompleteSession = async () => {
+    if (!sessionToComplete) return;
     
     try {
-      setIsSubmitting(true);
-      setCompletingSession(sessionToConfirm.id);
-      
-      await onCompleteSession(sessionToConfirm.id, sessionToConfirm.stationId);
-      
-      // Reset states after completion
-      setSessionToConfirm(null);
+      setIsCompleting(true);
+      await completeSession(sessionToComplete.id, sessionToComplete.stationId);
+      setIsDialogOpen(false);
     } catch (error) {
-      console.error('Error completing session:', error);
+      console.error('Failed to complete session:', error);
     } finally {
-      setIsSubmitting(false);
-      setCompletingSession(null);
+      setIsCompleting(false);
+      setSessionToComplete(null);
     }
   };
 
-  // Format wait time to display
-  const formatWaitTime = (minutes?: number): string => {
-    if (minutes === undefined || minutes === null) return 'Unknown';
-    if (minutes === 0) return 'No wait';
-    
-    if (minutes < 60) {
-      return `${minutes} min`;
-    } else {
-      const hours = Math.floor(minutes / 60);
-      const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 
-        ? `${hours}h ${remainingMinutes}m` 
-        : `${hours}h`;
-    }
+  // Open confirmation dialog
+  const openConfirmDialog = (session: ChargingSession) => {
+    setSessionToComplete(session);
+    setIsDialogOpen(true);
   };
 
-  // Format date to display
-  const formatDate = (date: Date): string => {
-    return new Date(date).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+  // Get queue position badge variant
+  const getPositionBadgeVariant = (position: number) => {
+    if (position === 1) return 'default';
+    if (position <= 3) return 'secondary';
+    return 'outline';
   };
 
-  // Get queue position badge color
-  const getPositionBadgeColor = (position: number): string => {
-    if (position === 1) return 'bg-green-100 text-green-800';
-    if (position <= 3) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  return (
-    <>
-      <Card className="w-full">
+  if (isLoading) {
+    return (
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-blue-500" />
+            <Users className="h-5 w-5" />
             Active Charging Sessions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-6">
-              <div className="animate-pulse flex flex-col w-full gap-4" data-testid="loading-indicator">
-                <div className="h-20 bg-gray-200 rounded-md w-full"></div>
-                <div className="h-20 bg-gray-200 rounded-md w-full"></div>
-              </div>
-            </div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              <div className="mb-2">
-                <CheckCircle className="h-12 w-12 mx-auto text-gray-400" />
-              </div>
-              <p className="text-lg font-medium">No active charging sessions</p>
-              <p className="text-sm mt-1">
-                Join a queue at a charging station to start charging
-              </p>
+          <div className="flex items-center justify-center py-6">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            Error Loading Sessions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-red-500">{error}</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Active Charging Sessions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sessions.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
+              <p>No active charging sessions</p>
             </div>
           ) : (
             <div className="space-y-4">
               {sessions.map((session) => (
                 <div 
                   key={session.id} 
-                  className="border rounded-lg p-4 flex flex-col gap-3"
+                  className="border rounded-lg p-4 space-y-3"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-medium">{session.stationName}</h3>
-                      <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>Joined {formatDate(session.joinedAt)}</span>
+                      <h3 className="font-medium">{session.stationName || `Station ${session.stationId.substring(0, 8)}...`}</h3>
+                      <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3" />
+                        <span>Joined {formatDate(new Date(session.joinedAt))}</span>
                       </div>
                     </div>
-                    <Badge 
-                      className={getPositionBadgeColor(session.queuePosition)}
-                    >
-                      {session.queuePosition === 1 
-                        ? "You're next!" 
-                        : `Position ${session.queuePosition}`}
+                    <Badge variant={getPositionBadgeVariant(session.queuePosition)}>
+                      {session.queuePosition === 1 ? (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          You're next!
+                        </span>
+                      ) : (
+                        `Position ${session.queuePosition}`
+                      )}
                     </Badge>
                   </div>
-                  
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span>Station #{session.stationId.slice(-4)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Timer className="h-4 w-4 text-gray-500" />
+
+                  {session.estimatedWaitTime !== undefined && (
+                    <div className="text-sm flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-amber-500" />
                       <span>
-                        Wait: {formatWaitTime(session.estimatedWaitTime)}
+                        Est. wait: {session.estimatedWaitTime} {session.estimatedWaitTime === 1 ? 'minute' : 'minutes'}
                       </span>
                     </div>
-                  </div>
-                  
-                  <Button
-                    onClick={() => setSessionToConfirm(session)}
-                    disabled={isSubmitting || completingSession === session.id}
-                    className="w-full mt-2"
-                    variant={session.queuePosition === 1 ? "default" : "secondary"}
+                  )}
+
+                  <Button 
+                    onClick={() => openConfirmDialog(session)}
+                    variant="default"
+                    className="w-full"
                   >
-                    {isSubmitting && completingSession === session.id ? (
-                      <>
-                        <span className="animate-spin mr-1">⚪</span>
-                        Completing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Complete Charging
-                      </>
-                    )}
+                    Complete Charging
                   </Button>
                 </div>
               ))}
@@ -175,24 +148,22 @@ export function ActiveSessionsCard({
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={!!sessionToConfirm} onOpenChange={(open) => !open && setSessionToConfirm(null)}>
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete Charging Session</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to complete your charging session at{' '}
-              <span className="font-medium">{sessionToConfirm?.stationName}</span>?
-              This will remove you from the queue and update the wait time for other users.
+              Are you sure you want to complete this charging session? This will remove you from the queue and update the queue count for other users.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isCompleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleConfirmComplete}
-              disabled={isSubmitting}
+              onClick={handleCompleteSession}
+              disabled={isCompleting}
+              className={isCompleting ? 'opacity-50 cursor-not-allowed' : ''}
             >
-              {isSubmitting ? 'Completing...' : 'Complete Session'}
+              {isCompleting ? 'Completing...' : 'Complete Session'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

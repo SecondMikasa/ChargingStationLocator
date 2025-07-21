@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Navigation, MapPin, DollarSign, Users, Clock } from 'lucide-react';
 import L from 'leaflet';
+import { QueueStatusIndicator } from '@/components/stations/queue-status-indicator';
+import { useSession } from 'next-auth/react';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -82,6 +84,8 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
   // Prevent unused parameter warning
   console.debug('Station selection handler:', onStationSelect);
   const [mapReady, setMapReady] = useState(false);
+  const [userSessions, setUserSessions] = useState<Record<string, number>>({});
+  const { data: session } = useSession();
 
   // Handle navigation to Google Maps
   const handleNavigate = (station: ChargingStation) => {
@@ -96,6 +100,32 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
     const url = `https://www.google.com/maps/dir/${userLocation.latitude},${userLocation.longitude}/${station.latitude},${station.longitude}`;
     window.open(url, '_blank');
   };
+
+  // Fetch user's active sessions
+  useEffect(() => {
+    const fetchUserSessions = async () => {
+      if (!session?.user) return;
+      
+      try {
+        const response = await fetch('/api/sessions/active');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        // Create a map of stationId -> queuePosition
+        const sessionMap: Record<string, number> = {};
+        data.sessions.forEach((session: any) => {
+          sessionMap[session.stationId] = session.queuePosition;
+        });
+        
+        setUserSessions(sessionMap);
+      } catch (error) {
+        console.error('Error fetching user sessions:', error);
+      }
+    };
+    
+    fetchUserSessions();
+  }, [session]);
 
   // Handle joining queue
   const handleJoinQueue = async (station: ChargingStation) => {
@@ -123,6 +153,14 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
       // Update the queue length in the parent component
       if (onQueueUpdate && data.station) {
         onQueueUpdate(stationId, data.station.queueLength);
+      }
+      
+      // Update local user sessions map
+      if (data.session) {
+        setUserSessions(prev => ({
+          ...prev,
+          [stationId]: data.session.queuePosition
+        }));
       }
 
       alert(`Successfully joined the queue at ${station.name}! Queue position: ${data.station.queueLength}`);
@@ -220,15 +258,11 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
 
                   {/* Queue status */}
                   <div className="mb-3">
-                    <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${station.queueLength === 0
-                      ? 'bg-green-100 text-green-800'
-                      : station.queueLength <= 2
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                      }`}>
-                      <Users className="h-3 w-3 mr-1" />
-                      {station.queueLength === 0 ? 'Available Now' : `${station.queueLength} in queue`}
-                    </div>
+                    <QueueStatusIndicator 
+                      stationId={station.id || station._id?.toString() || ''} 
+                      initialQueueLength={station.queueLength}
+                      userPosition={userSessions[station.id || station._id?.toString() || '']}
+                    />
                   </div>
 
                   {/* Operating hours */}
@@ -273,9 +307,12 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
                       className="w-full"
                       size="sm"
                       variant="default"
+                      disabled={!!userSessions[station.id || station._id?.toString() || '']}
                     >
                       <Users className="h-4 w-4 mr-2" />
-                      Join Queue
+                      {userSessions[station.id || station._id?.toString() || ''] 
+                        ? 'Already in Queue' 
+                        : 'Join Queue'}
                     </Button>
                     <Button 
                       onClick={() => handleNavigate(station)}

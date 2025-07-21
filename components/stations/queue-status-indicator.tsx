@@ -1,141 +1,121 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Users, Clock, AlertCircle } from 'lucide-react';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { formatDate } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 interface QueueStatusIndicatorProps {
-    stationId: string;
-    initialQueueLength: number;
-    userPosition?: number;
-    className?: string;
-    lastUpdated?: Date;
+  stationId: string;
+  initialQueueLength: number;
+  userPosition?: number;
+  className?: string;
 }
 
-interface GetQueueStatusType {
-    label: 'Available Now' | 'Low Wait' | 'High Wait';
-    variant: 'default' | 'secondary' | 'destructive';
-    icon: React.ReactElement;
-}
-
-export function QueueStatusIndicator({
-    stationId,
-    initialQueueLength,
-    userPosition,
-    className,
-    lastUpdated = new Date(),
+export function QueueStatusIndicator({ 
+  stationId, 
+  initialQueueLength, 
+  userPosition, 
+  className 
 }: QueueStatusIndicatorProps) {
-    const [queueLength, setQueueLength] = useState(initialQueueLength);
-    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(lastUpdated);
+  const [queueLength, setQueueLength] = useState(initialQueueLength);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    // Connect to WebSocket for real-time updates
-    const {
-        isConnected,
-        subscribeToStation,
-        unsubscribeFromStation,
-        onQueueUpdate,
-    } = useWebSocket({
-        autoConnect: true,
-    });
+  const { 
+    subscribeToStation, 
+    unsubscribeFromStation, 
+    onQueueUpdate, 
+    isConnected 
+  } = useWebSocket({
+    autoConnect: true
+  });
 
-    // Subscribe to station updates when component mounts
-    useEffect(() => {
-        if (stationId) {
-            subscribeToStation(stationId);
+  // Subscribe to station updates when component mounts
+  useEffect(() => {
+    if (isConnected && stationId) {
+      subscribeToStation(stationId);
+      setIsSubscribed(true);
+    }
+  }, [isConnected, stationId, subscribeToStation]);
 
-            // Cleanup: unsubscribe when component unmounts
-            return () => {
-                unsubscribeFromStation(stationId);
-            };
-        }
-    }, [stationId, subscribeToStation, unsubscribeFromStation]);
-
-    // Handle queue updates from WebSocket
-    useEffect(() => {
-        onQueueUpdate((update) => {
-            if (update.stationId === stationId) {
-                setQueueLength(update.newQueueLength);
-                setLastUpdateTime(new Date(update.timestamp));
-            }
-        });
-    }, [stationId, onQueueUpdate]);
-
-    // Determine queue status for visual indicator
-    const getQueueStatus = (): GetQueueStatusType => {
-        if (queueLength === 0) {
-            return {
-                label: 'Available Now',
-                variant: 'default', // green
-                icon: <CheckCircle className="h-4 w-4" />,
-            };
-        } else if (queueLength <= 3) {
-            return {
-                label: 'Low Wait',
-                variant: 'secondary', // yellow/amber
-                icon: <Clock className="h-4 w-4" />,
-            };
-        } else {
-            return {
-                label: 'High Wait',
-                variant: 'destructive', // red
-                icon: <AlertCircle className="h-4 w-4" />,
-            };
-        }
+  // Handle queue updates from WebSocket
+  useEffect(() => {
+    const handleQueueUpdate = (update: any) => {
+      if (update.stationId === stationId) {
+        setQueueLength(update.newQueueLength);
+        setLastUpdated(new Date(update.timestamp));
+      }
     };
 
-    const queueStatus = getQueueStatus();
+    onQueueUpdate(handleQueueUpdate);
 
+    return () => {
+      // Cleanup subscription when component unmounts
+      if (isSubscribed && stationId) {
+        unsubscribeFromStation(stationId);
+      }
+    };
+  }, [stationId, onQueueUpdate, unsubscribeFromStation, isSubscribed]);
+
+  // Get queue status color
+  const getQueueStatusColor = (length: number) => {
+    if (length === 0) return 'bg-green-100 text-green-800';
+    if (length <= 2) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  // Get queue status text
+  const getQueueStatusText = (length: number) => {
+    if (length === 0) return 'Available Now';
+    if (length === 1) return '1 in queue';
+    return `${length} in queue`;
+  };
+
+  // Format last updated time
+  const getLastUpdatedText = () => {
+    try {
+      return `Updated ${formatDistanceToNow(lastUpdated, { addSuffix: true })}`;
+    } catch (err) {
+      return 'Just updated';
+    }
+  };
+
+  if (error) {
     return (
-        <Card className={cn("w-full", className)}>
-            <CardContent className="p-4">
-                <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Users className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">Queue Status</span>
-                        </div>
-                        <Badge variant={queueStatus.variant} className="flex items-center space-x-1">
-                            {queueStatus.icon}
-                            <span>{queueStatus.label}</span>
-                        </Badge>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold">
-                            {queueLength} {queueLength === 1 ? 'person' : 'people'} in queue
-                        </div>
-                    </div>
-
-                    {userPosition !== undefined && (
-                        <div className="mt-2 flex items-center space-x-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                                Your position: {userPosition}
-                            </Badge>
-                            {userPosition === 1 && (
-                                <Badge variant="default" className="animate-pulse">
-                                    You're next!
-                                </Badge>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="mt-1 text-xs text-muted-foreground flex items-center">
-                        <Clock className="mr-1 h-3 w-3" />
-                        Last updated: {formatDate(lastUpdateTime)}
-                    </div>
-
-                    {!isConnected && (
-                        <div className="mt-1 text-xs text-destructive flex items-center">
-                            <AlertCircle className="mr-1 h-3 w-3" />
-                            Offline - updates paused
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+      <div className={`flex items-center gap-2 text-red-500 text-sm ${className}`}>
+        <AlertCircle className="h-4 w-4" />
+        <span>Error loading queue status</span>
+      </div>
     );
+  }
+
+  return (
+    <div className={`flex flex-col ${className}`}>
+      <Badge 
+        variant="secondary" 
+        className={`${getQueueStatusColor(queueLength)} mb-1`}
+      >
+        <Users className="h-3 w-3 mr-1" />
+        {getQueueStatusText(queueLength)}
+      </Badge>
+      
+      {userPosition && (
+        <div className="text-xs font-medium mb-1">
+          {userPosition === 1 ? (
+            <span className="text-green-600">You're next!</span>
+          ) : (
+            <span>Your position: {userPosition}</span>
+          )}
+        </div>
+      )}
+      
+      <div className="flex items-center text-xs text-muted-foreground">
+        <Clock className="h-3 w-3 mr-1" />
+        <span>{getLastUpdatedText()}</span>
+      </div>
+    </div>
+  );
 }

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChargingStation } from '@/types/station';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Clock, DollarSign, Users, Navigation, Wifi, Coffee, Car, ShoppingBag, Fuel, Zap } from 'lucide-react';
+import { QueueStatusIndicator } from '@/components/stations/queue-status-indicator';
+import { useSession } from 'next-auth/react';
 
 interface StationListProps {
   stations: ChargingStation[];
@@ -22,6 +24,8 @@ type SortOption = 'distance' | 'price' | 'queue';
 
 export function StationList({ stations, loading = false, userLocation, onQueueUpdate }: StationListProps) {
   const [sortBy, setSortBy] = useState<SortOption>('distance');
+  const [userSessions, setUserSessions] = useState<Record<string, number>>({});
+  const { data: session } = useSession();
 
   // Sort stations based on selected option
   const sortedStations = useMemo(() => {
@@ -71,6 +75,32 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
     window.open(url, '_blank');
   };
 
+  // Fetch user's active sessions
+  useEffect(() => {
+    const fetchUserSessions = async () => {
+      if (!session?.user) return;
+      
+      try {
+        const response = await fetch('/api/sessions/active');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        // Create a map of stationId -> queuePosition
+        const sessionMap: Record<string, number> = {};
+        data.sessions.forEach((session: any) => {
+          sessionMap[session.stationId] = session.queuePosition;
+        });
+        
+        setUserSessions(sessionMap);
+      } catch (error) {
+        console.error('Error fetching user sessions:', error);
+      }
+    };
+    
+    fetchUserSessions();
+  }, [session]);
+
   // Handle joining queue
   const handleJoinQueue = async (station: ChargingStation) => {
     try {
@@ -97,6 +127,14 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
       // Update the queue length in the parent component
       if (onQueueUpdate && data.station) {
         onQueueUpdate(stationId, data.station.queueLength);
+      }
+      
+      // Update local user sessions map
+      if (data.session) {
+        setUserSessions(prev => ({
+          ...prev,
+          [stationId]: data.session.queuePosition
+        }));
       }
 
       alert(`Successfully joined the queue at ${station.name}! Queue position: ${data.station.queueLength}`);
@@ -174,12 +212,11 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg">{station.name}</CardTitle>
-                <Badge 
-                  variant="secondary" 
-                  className={getQueueStatusColor(station.queueLength)}
-                >
-                  {station.queueLength === 0 ? 'Available' : `${station.queueLength} in queue`}
-                </Badge>
+                <QueueStatusIndicator 
+                  stationId={station.id || station._id?.toString() || ''} 
+                  initialQueueLength={station.queueLength}
+                  userPosition={userSessions[station.id || station._id?.toString() || '']}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -199,6 +236,8 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
                   <Users className="h-4 w-4 text-orange-600" />
                   <span className="font-medium">
                     {station.queueLength === 0 ? 'No wait' : `${station.queueLength} waiting`}
+                    {userSessions[station.id || station._id?.toString() || ''] && 
+                      ` (You: #${userSessions[station.id || station._id?.toString() || '']})`}
                   </span>
                 </div>
               </div>
@@ -236,9 +275,12 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
                   onClick={() => handleJoinQueue(station)}
                   className="w-full"
                   variant="default"
+                  disabled={!!userSessions[station.id || station._id?.toString() || '']}
                 >
                   <Users className="h-4 w-4 mr-2" />
-                  Join Queue
+                  {userSessions[station.id || station._id?.toString() || ''] 
+                    ? 'Already in Queue' 
+                    : 'Join Queue'}
                 </Button>
                 <Button 
                   onClick={() => handleNavigate(station)}
