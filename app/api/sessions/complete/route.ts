@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth-options';
 import connectDB from '@/lib/mongodb';
 import ChargingSession from '@/models/ChargingSession';
 import ChargingStation from '@/models/ChargingStation';
-import { CompleteSessionRequest, CompleteSessionResponse } from '@/types/queue';
+import { CompleteSessionResponse } from '@/types/queue';
 import { 
   validateSessionCompletion, 
   updateQueuePositions, 
@@ -13,9 +13,48 @@ import {
 } from '@/lib/session-utils';
 import webSocketService from '@/lib/websocket-service';
 import mongoose from 'mongoose';
+import { sessionCompletionRateLimiter } from '@/lib/rate-limiter';
+import securityAudit from '@/lib/security-audit';
+import { validateSessionCompletionRequest } from '@/lib/input-validation';
+
+// Helper function to get client IP from request
+function getClientIp(request: NextRequest): string {
+  // Try to get IP from headers first (for proxied requests)
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  
+  // Try to get from other common headers
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp;
+  }
+  
+  // If no headers available, return a placeholder
+  return 'unknown-ip';
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting
+    const rateLimitResponse = await sessionCompletionRateLimiter(request);
+    if (rateLimitResponse) {
+      // Log rate limit exceeded
+      await securityAudit.logSecurityEvent({
+        ipAddress: getClientIp(request),
+        action: 'rate_limit_exceeded',
+        resource: 'session_completion',
+        status: 'failure',
+        details: {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers)
+        }
+      });
+      
+      return rateLimitResponse;
+    }
+    
     // Connect to MongoDB
     await connectDB();
 
@@ -23,6 +62,18 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
+      // Log unauthorized access attempt
+      await securityAudit.logSecurityEvent({
+        ipAddress: getClientIp(request),
+        action: 'unauthorized_access',
+        resource: 'session_completion',
+        status: 'failure',
+        details: {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers)
+        }
+      });
+      
       return NextResponse.json(
         { 
           success: false, 
@@ -33,38 +84,123 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
-    const body: CompleteSessionRequest = await request.json();
-    const { sessionId, stationId } = body;
+    const userId = session.user.id || session.user.email || '';
+    
+    // Check for suspicious activity
+    const isSuspicious = await securityAudit.detectSuspiciousActivity(
+      userId,
+      'session_complete',
+      'charging_session',
+      5 // 5 minute window
+    );
+    
+    if (isSuspicious) {
+      // Log suspicious activity
+      await securityAudit.logSuspiciousActivity(
+        userId,
+        getClientIp(request),
+        'session_complete',
+        'charging_session',
+        undefined,
+        {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers),
+          reason: 'Suspicious activity pattern detected'
+        }
+      );
+      
+      // We still process the request but with additional logging
+      console.warn(`Suspicious activity detected for user ${userId}`);
+    }
 
-    // Validate required fields
-    if (!sessionId || !stationId) {
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (error) {
+      // Log invalid JSON
+      await securityAudit.logSecurityEvent({
+        userId: userId,
+        ipAddress: getClientIp(request),
+        action: 'validation_failure',
+        resource: 'session_completion',
+        status: 'failure',
+        details: {
+          reason: 'Invalid JSON in request body',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
+      
       return NextResponse.json(
         {
           success: false,
-          error: 'Session ID and Station ID are required.',
+          error: 'Invalid request format.',
           code: 'INVALID_REQUEST'
         },
         { status: 400 }
       );
     }
 
-    // Validate the session completion request
-    const validation = await validateSessionCompletion(sessionId, stationId, session.user.id);
-    
+    // Validate request structure and content
+    const validation = validateSessionCompletionRequest(body);
     if (!validation.isValid) {
+      // Log validation failure
+      await securityAudit.logSecurityEvent({
+        userId: userId,
+        ipAddress: getClientIp(request),
+        action: 'validation_failure',
+        resource: 'session_completion',
+        status: 'failure',
+        details: {
+          reason: validation.error,
+          providedBody: body
+        }
+      });
+      
       return NextResponse.json(
         {
           success: false,
           error: validation.error,
-          code: validation.code
+          code: 'INVALID_REQUEST'
         },
-        { status: validation.code === 'UNAUTHORIZED' ? 403 : 
-                  validation.code === 'DUPLICATE_COMPLETION' ? 409 : 404 }
+        { status: 400 }
       );
     }
 
-    const { session: chargingSession, station } = validation;
+    // TypeScript now knows validation.isValid is true, so sessionId and stationId are defined
+    const { sessionId, stationId } = validation;
+
+    // Validate the session completion request
+    const sessionValidation = await validateSessionCompletion(sessionId, stationId, userId);
+    
+    if (!sessionValidation.isValid) {
+      // Log validation failure with specific reason
+      await securityAudit.logSecurityEvent({
+        userId: userId,
+        ipAddress: getClientIp(request),
+        action: 'session_validation_failure',
+        resource: 'charging_session',
+        resourceId: sessionId,
+        status: 'failure',
+        details: {
+          stationId,
+          reason: sessionValidation.error,
+          code: sessionValidation.code
+        }
+      });
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: sessionValidation.error,
+          code: sessionValidation.code
+        },
+        { status: sessionValidation.code === 'UNAUTHORIZED' ? 403 : 
+                  sessionValidation.code === 'DUPLICATE_COMPLETION' ? 409 : 404 }
+      );
+    }
+
+    const { session: chargingSession, station } = sessionValidation;
 
     // Ensure we have valid session and station data
     if (!chargingSession || !station) {
@@ -104,7 +240,7 @@ export async function POST(request: NextRequest) {
           stationId,
           previousQueueLength,
           validStation.queueLength,
-          session.user.id,
+          userId,
           'session_complete',
           mongoSession
         );
@@ -121,7 +257,7 @@ export async function POST(request: NextRequest) {
       webSocketService.broadcastQueueUpdate(
         stationId,
         updatedStation!.queueLength,
-        session.user.id
+        userId
       );
 
       // Send notification to users in the queue about position changes
@@ -148,7 +284,7 @@ export async function POST(request: NextRequest) {
         webSocketService.broadcastQueueUpdate(
           stationId,
           0,
-          session.user.id
+          userId
         );
       }
 

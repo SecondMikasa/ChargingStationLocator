@@ -5,16 +5,102 @@ import ChargingSession from '@/models/ChargingSession';
 import ChargingStation from '@/models/ChargingStation';
 import connectDB from '@/lib/mongodb';
 import { SessionHistoryResponse } from '@/types/queue';
+import { rateLimiter } from '@/lib/rate-limiter';
+import securityAudit from '@/lib/security-audit';
+import { validatePagination } from '@/lib/session-utils';
+
+// Helper function to get client IP from request
+function getClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp;
+  }
+  
+  return 'unknown-ip';
+}
+
+// Rate limiter for session history endpoint
+const sessionHistoryRateLimiter = rateLimiter({
+  limit: 20, // 20 requests per minute
+  windowInSeconds: 60
+});
 
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting
+    const rateLimitResponse = await sessionHistoryRateLimiter(request);
+    if (rateLimitResponse) {
+      // Log rate limit exceeded
+      await securityAudit.logSecurityEvent({
+        ipAddress: getClientIp(request),
+        action: 'rate_limit_exceeded',
+        resource: 'session_history',
+        status: 'failure',
+        details: {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers)
+        }
+      });
+      
+      return rateLimitResponse;
+    }
+
     // Get user session
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id && !session?.user?.email) {
+      // Log unauthorized access attempt
+      await securityAudit.logSecurityEvent({
+        ipAddress: getClientIp(request),
+        action: 'unauthorized_access',
+        resource: 'session_history',
+        status: 'failure',
+        details: {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers)
+        }
+      });
+      
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { 
+          success: false,
+          error: 'Unauthorized. Please log in to view session history.',
+          code: 'UNAUTHORIZED'
+        },
         { status: 401 }
       );
+    }
+
+    const userId = session.user.id || session.user.email || '';
+
+    // Check for suspicious activity
+    const isSuspicious = await securityAudit.detectSuspiciousActivity(
+      userId,
+      'view_session_history',
+      'charging_session',
+      5 // 5 minute window
+    );
+    
+    if (isSuspicious) {
+      // Log suspicious activity
+      await securityAudit.logSuspiciousActivity(
+        userId,
+        getClientIp(request),
+        'view_session_history',
+        'charging_session',
+        undefined,
+        {
+          path: request.nextUrl.pathname,
+          headers: Object.fromEntries(request.headers),
+          reason: 'Suspicious activity pattern detected'
+        }
+      );
+      
+      console.warn(`Suspicious activity detected for user ${userId} accessing session history`);
     }
 
     // Connect to database
@@ -24,29 +110,49 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '5');
-    const skip = (page - 1) * limit;
 
-    // Validate pagination parameters
-    if (page < 1 || limit < 1 || limit > 50) {
+    // Validate pagination parameters using utility function
+    const paginationValidation = validatePagination(page, limit);
+    if (!paginationValidation.isValid) {
+      // Log validation failure
+      await securityAudit.logSecurityEvent({
+        userId: userId,
+        ipAddress: getClientIp(request),
+        action: 'validation_failure',
+        resource: 'session_history',
+        status: 'failure',
+        details: {
+          reason: paginationValidation.error,
+          providedPage: page,
+          providedLimit: limit
+        }
+      });
+      
       return NextResponse.json(
-        { error: 'Invalid pagination parameters' },
+        { 
+          success: false,
+          error: paginationValidation.error,
+          code: 'INVALID_REQUEST'
+        },
         { status: 400 }
       );
     }
 
-    // Find completed sessions for the user
+    const skip = (paginationValidation.normalizedPage - 1) * paginationValidation.normalizedLimit;
+
+    // Find completed sessions for the user (using user.id for consistency)
     const [sessions, totalCount] = await Promise.all([
       ChargingSession.find({
-        userId: session.user.email,
+        userId: userId,
         status: { $in: ['completed', 'cancelled'] }
       })
       .sort({ completedAt: -1, updatedAt: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(paginationValidation.normalizedLimit)
       .lean(),
       
       ChargingSession.countDocuments({
-        userId: session.user.email,
+        userId: userId,
         status: { $in: ['completed', 'cancelled'] }
       })
     ]);
@@ -74,20 +180,60 @@ export async function GET(request: NextRequest) {
       updatedAt: session.updatedAt,
     }));
 
+    // Log successful access
+    await securityAudit.logSecurityEvent({
+      userId: userId,
+      ipAddress: getClientIp(request),
+      action: 'view_session_history',
+      resource: 'charging_session',
+      status: 'success',
+      details: {
+        page: paginationValidation.normalizedPage,
+        limit: paginationValidation.normalizedLimit,
+        totalCount,
+        sessionCount: formattedSessions.length
+      }
+    });
+
     const response: SessionHistoryResponse = {
       sessions: formattedSessions,
       pagination: {
-        page,
-        limit,
+        page: paginationValidation.normalizedPage,
+        limit: paginationValidation.normalizedLimit,
         total: totalCount,
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json({
+      success: true,
+      ...response
+    });
   } catch (error) {
     console.error('Error fetching session history:', error);
+    
+    // Log the error for security monitoring
+    try {
+      const session = await getServerSession(authOptions);
+      await securityAudit.logSecurityEvent({
+        userId: session?.user?.id,
+        ipAddress: getClientIp(request),
+        action: 'view_session_history',
+        resource: 'charging_session',
+        status: 'failure',
+        details: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
+    } catch (auditError) {
+      console.error('Failed to log security event:', auditError);
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch session history' },
+      { 
+        success: false,
+        error: 'Internal server error. Please try again later.',
+        code: 'INTERNAL_ERROR'
+      },
       { status: 500 }
     );
   }
