@@ -1,7 +1,6 @@
-import mongoose from 'mongoose';
 import UserNotification, { IUserNotification } from '@/models/UserNotification';
-import ChargingSession, { IChargingSession } from '@/models/ChargingSession';
-import ChargingStation, { IChargingStation } from '@/models/ChargingStation';
+import ChargingSession from '@/models/ChargingSession';
+import ChargingStation from '@/models/ChargingStation';
 import { calculateEstimatedWaitTimeSync } from './session-utils';
 import { webSocketService } from './websocket-service';
 import connectDB from './mongodb';
@@ -27,23 +26,23 @@ export class NotificationService {
     previousPosition: number,
     newPosition: number,
     stationName: string,
-    stationId?: string
+    _stationId?: string
   ): Promise<IUserNotification> {
     await connectDB();
-    
+
     // Calculate wait time reduction
     const previousWaitTime = calculateEstimatedWaitTimeSync(previousPosition);
     const newWaitTime = calculateEstimatedWaitTimeSync(newPosition);
     const waitTimeReduction = previousWaitTime - newWaitTime;
-    
+
     // Format wait times for display
     const formattedWaitTime = this.formatWaitTime(newWaitTime);
-    
+
     // Determine priority based on new position
     let priority: 'low' | 'medium' | 'high' = 'low';
     let type: 'position_update' | 'next_in_line' = 'position_update';
     let message = `Your position in the queue at ${stationName} has moved up from ${previousPosition} to ${newPosition}.`;
-    
+
     // Special case for position 1
     if (newPosition === 1) {
       priority = 'high';
@@ -64,7 +63,7 @@ export class NotificationService {
     else {
       message = `Your position in the queue at ${stationName} has moved up from ${previousPosition} to ${newPosition}. Estimated wait time: ${formattedWaitTime}.`;
     }
-    
+
     // Create notification in database
     const notification = await UserNotification.create({
       userId,
@@ -74,7 +73,7 @@ export class NotificationService {
       read: false,
       priority
     });
-    
+
     // Send real-time notification via WebSocket
     webSocketService.broadcastUserNotification(userId, {
       sessionId,
@@ -82,10 +81,10 @@ export class NotificationService {
       message,
       priority
     });
-    
+
     return notification;
   }
-  
+
   /**
    * Formats wait time in a human-readable format
    * 
@@ -96,21 +95,21 @@ export class NotificationService {
     if (minutes === 0) {
       return 'available now';
     }
-    
+
     if (minutes < 60) {
       return `${minutes} minutes`;
     }
-    
+
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    
+
     if (remainingMinutes === 0) {
       return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
     }
-    
+
     return `${hours} ${hours === 1 ? 'hour' : 'hours'} and ${remainingMinutes} minutes`;
   }
-  
+
   /**
    * Creates a notification when a station becomes available
    * 
@@ -127,7 +126,7 @@ export class NotificationService {
     stationName: string
   ): Promise<IUserNotification> {
     await connectDB();
-    
+
     const notification = await UserNotification.create({
       userId,
       sessionId,
@@ -136,7 +135,7 @@ export class NotificationService {
       read: false,
       priority: 'high'
     });
-    
+
     // Send real-time notification via WebSocket
     webSocketService.broadcastUserNotification(userId, {
       sessionId,
@@ -144,10 +143,10 @@ export class NotificationService {
       message: `${stationName} is now available! You can start charging immediately.`,
       priority: 'high'
     });
-    
+
     return notification;
   }
-  
+
   /**
    * Updates notifications for all users in a queue when positions change
    * Called after a session is completed to notify users of their new positions
@@ -160,7 +159,7 @@ export class NotificationService {
     completedPosition: number
   ): Promise<void> {
     await connectDB();
-    
+
     try {
       // Get station information for notification messages
       const station = await ChargingStation.findById(stationId);
@@ -168,21 +167,21 @@ export class NotificationService {
         console.error(`Station ${stationId} not found for notifications`);
         return;
       }
-      
+
       const stationName = station.name || `Station ${stationId}`;
-      
+
       // Find all active sessions for this station that were affected by the position change
       const affectedSessions = await ChargingSession.find({
         stationId,
         status: 'active',
         queuePosition: { $lt: completedPosition } // Only positions that moved up
       });
-      
+
       // Create notifications for each affected user
       for (const session of affectedSessions) {
         const previousPosition = session.queuePosition + 1; // Position before update
         const newPosition = session.queuePosition; // Current position after update
-        
+
         await this.createPositionUpdateNotification(
           session.userId,
           session._id.toString(),
@@ -192,14 +191,14 @@ export class NotificationService {
           stationId
         );
       }
-      
+
       // Special notification for the user who is now first in line
       const nextSession = await ChargingSession.findOne({
         stationId,
         status: 'active',
         queuePosition: 1
       });
-      
+
       if (nextSession) {
         await this.createPositionUpdateNotification(
           nextSession.userId,
@@ -210,25 +209,25 @@ export class NotificationService {
           stationId
         );
       }
-      
+
       // Check if queue is now empty (station available)
       if (station.queueLength === 0) {
         // Find users who might be interested in this station
         // For now, we'll notify users who had sessions at this station in the last 24 hours
         const oneDayAgo = new Date();
         oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        
+
         const recentUsers = await ChargingSession.find({
           stationId,
           joinedAt: { $gte: oneDayAgo },
           status: { $in: ['completed', 'cancelled'] }
         }).distinct('userId');
-        
+
         // Notify these users that the station is now available
         for (const userId of recentUsers) {
           // Create a temporary session ID for the notification
           const tempSessionId = `available-${stationId}-${Date.now()}`;
-          
+
           await this.createStationAvailableNotification(
             userId,
             tempSessionId,
@@ -241,7 +240,7 @@ export class NotificationService {
       console.error('Error updating queue position notifications:', error);
     }
   }
-  
+
   /**
    * Gets unread notifications for a user
    * 
@@ -254,15 +253,15 @@ export class NotificationService {
     limit: number = 10
   ): Promise<IUserNotification[]> {
     await connectDB();
-    
+
     return UserNotification.find({
       userId,
       read: false
     })
-    .sort({ createdAt: -1 })
-    .limit(limit);
+      .sort({ createdAt: -1 })
+      .limit(limit);
   }
-  
+
   /**
    * Marks notifications as read
    * 
@@ -275,7 +274,7 @@ export class NotificationService {
     userId: string
   ): Promise<number> {
     await connectDB();
-    
+
     const result = await UserNotification.updateMany(
       {
         _id: { $in: notificationIds },
@@ -285,10 +284,10 @@ export class NotificationService {
         $set: { read: true }
       }
     );
-    
+
     return result.modifiedCount;
   }
-  
+
   /**
    * Deletes old read notifications to keep the database clean
    * 
@@ -301,17 +300,17 @@ export class NotificationService {
     onlyRead: boolean = true
   ): Promise<number> {
     await connectDB();
-    
-    const query: any = {
+
+    const query: { createdAt: { $lt: Date }; userId?: string; read?: boolean } = {
       createdAt: { $lt: olderThan }
     };
-    
+
     if (onlyRead) {
       query.read = true;
     }
-    
+
     const result = await UserNotification.deleteMany(query);
-    
+
     return result.deletedCount;
   }
 }

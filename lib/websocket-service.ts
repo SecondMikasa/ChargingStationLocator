@@ -87,7 +87,7 @@ class WebSocketService {
   private setupEventHandlers(): void {
     if (!this.wss) return;
 
-    this.wss.on('connection', (ws: WebSocket, request) => {
+    this.wss.on('connection', (ws: WebSocket, _request) => {
       console.log('New WebSocket connection established');
 
       // Initialize client connection
@@ -212,7 +212,7 @@ class WebSocketService {
   }
 
   // Send message to specific WebSocket connection
-  private sendMessage(ws: WebSocket, message: any): void {
+  private sendMessage(ws: WebSocket, message: unknown): void {
     if (ws.readyState === WebSocket.OPEN) {
       try {
         ws.send(JSON.stringify(message));

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import ChargingStation from '@/models/ChargingStation';
-import ChargingSession from '@/models/ChargingSession';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-options';
-import mongoose from 'mongoose';
 
 export async function POST(
   request: NextRequest,
