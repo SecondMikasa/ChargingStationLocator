@@ -88,9 +88,15 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
         
         // Create a map of stationId -> queuePosition
         const sessionMap: Record<string, number> = {};
-        data.sessions.forEach((session: any) => {
-          sessionMap[session.stationId] = session.queuePosition;
-        });
+        
+        // Check if data.sessions exists and is an array
+        if (data && data.sessions && Array.isArray(data.sessions)) {
+          data.sessions.forEach((session: any) => {
+            if (session.stationId && session.queuePosition) {
+              sessionMap[session.stationId] = session.queuePosition;
+            }
+          });
+        }
         
         setUserSessions(sessionMap);
       } catch (error) {

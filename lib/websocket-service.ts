@@ -1,5 +1,15 @@
-import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
+import { SafeWebSocketServer as WebSocketServer, WebSocket } from './websocket-fallback';
+
+// Handle bufferutil errors gracefully
+process.on('uncaughtException', (error) => {
+  if (error.message && error.message.includes('bufferUtil.unmask')) {
+    console.warn('Caught bufferUtil error, WebSocket will continue without native optimizations:', error.message);
+    return; // Don't crash the process
+  }
+  // Re-throw other uncaught exceptions
+  throw error;
+});
 
 // WebSocket message types
 export interface QueueUpdateMessage {
@@ -57,30 +67,41 @@ class WebSocketService {
       return this.wss;
     }
 
-    // Create WebSocket server
-    if (server) {
-      // Use existing HTTP server
-      this.wss = new WebSocketServer({ 
-        server,
-        path: '/api/ws/queue-updates',
-        perMessageDeflate: false 
-      });
-      console.log(`WebSocket server initialized on existing HTTP server`);
-    } else {
-      // Create standalone WebSocket server
-      const port = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8080;
-      this.wss = new WebSocketServer({ 
-        port,
-        perMessageDeflate: false 
-      });
-      console.log(`WebSocket server initialized on port ${port}`);
+    try {
+      // Create WebSocket server with compatibility settings
+      const wsOptions = {
+        perMessageDeflate: false,
+        skipUTF8Validation: true,
+        maxPayload: 16 * 1024, // 16KB max payload
+      };
+
+      if (server) {
+        // Use existing HTTP server
+        this.wss = new WebSocketServer({ 
+          server,
+          path: '/api/ws/queue-updates',
+          ...wsOptions
+        });
+        console.log(`WebSocket server initialized on existing HTTP server`);
+      } else {
+        // Create standalone WebSocket server
+        const port = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8080;
+        this.wss = new WebSocketServer({ 
+          port,
+          ...wsOptions
+        });
+        console.log(`WebSocket server initialized on port ${port}`);
+      }
+
+      this.setupEventHandlers();
+      this.startHeartbeat();
+      this.startConnectionStats();
+
+      return this.wss;
+    } catch (error) {
+      console.error('Failed to initialize WebSocket server:', error);
+      throw new Error(`WebSocket server initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    this.setupEventHandlers();
-    this.startHeartbeat();
-    this.startConnectionStats();
-
-    return this.wss;
   }
 
   // Set up WebSocket event handlers

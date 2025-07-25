@@ -37,19 +37,25 @@ export function QueueStatusIndicator({
 
   // Subscribe to station updates when component mounts
   useEffect(() => {
-    if (isConnected && stationId) {
+    if (isConnected && stationId && !isSubscribed) {
       subscribeToStation(stationId);
       setIsSubscribed(true);
       setError(null);
       setConnectionRetries(0);
-    } else if (wsError && connectionRetries < 3) {
-      // Retry connection with exponential backoff
+    }
+  }, [isConnected, stationId, isSubscribed, subscribeToStation]);
+
+  // Handle connection errors and retries
+  useEffect(() => {
+    if (wsError && connectionRetries < 3 && !isConnected) {
       const retryDelay = Math.pow(2, connectionRetries) * 1000;
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setConnectionRetries(prev => prev + 1);
       }, retryDelay);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [isConnected, stationId, subscribeToStation, wsError, connectionRetries]);
+  }, [wsError, connectionRetries, isConnected]);
 
   // Handle queue updates from WebSocket
   useEffect(() => {
@@ -62,14 +68,16 @@ export function QueueStatusIndicator({
     };
 
     onQueueUpdate(handleQueueUpdate);
+  }, [stationId, onQueueUpdate]);
 
+  // Cleanup subscription when component unmounts
+  useEffect(() => {
     return () => {
-      // Cleanup subscription when component unmounts
-      if (isSubscribed && stationId) {
+      if (stationId) {
         unsubscribeFromStation(stationId);
       }
     };
-  }, [stationId, onQueueUpdate, unsubscribeFromStation, isSubscribed]);
+  }, [stationId, unsubscribeFromStation]);
 
   // Handle WebSocket errors
   useEffect(() => {

@@ -46,6 +46,7 @@
     "@types/mongoose": "^5.11.97",
     "@types/ws": "^8.18.1",
     "bcryptjs": "^3.0.2",
+    "bufferutil": "^4.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -68,8 +69,9 @@
     "recharts": "2.15.4",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
+    "utf-8-validate": "^6.0.5",
     "vaul": "^1.1.2",
-    "ws": "^8.18.3",
+    "ws": "^8.17.1",
     "zod": "^4.0.5"
   },
   "devDependencies": {
