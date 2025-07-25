@@ -132,8 +132,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           reconnectAttemptsRef.current = 0;
 
           // Authenticate if user is logged in
-          if (session?.user?.id) {
-            wsRef.current?.send(JSON.stringify({
+          if (session?.user?.id && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
               type: 'AUTHENTICATE',
               userId: session.user.id
             }));
@@ -240,10 +240,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         setIsConnecting(false);
         stopHeartbeat();
 
-        // Attempt to reconnect if not manually closed
+        // Handle errors based on close code
+        if (event.code !== 1000) { // 1000 = normal closure
+          const errorMessage = event.reason || `Connection closed with code ${event.code}`;
+          console.error('WebSocket error:', errorMessage);
+          setError(errorMessage);
+        }
+
+        // Attempt reconnect
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`);
+          console.log(`Reconnecting (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -253,11 +260,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         }
       };
 
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('WebSocket connection error');
-        setIsConnecting(false);
-      };
 
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);

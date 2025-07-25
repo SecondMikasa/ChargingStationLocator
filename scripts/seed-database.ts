@@ -72,7 +72,7 @@ async function seedDatabase() {
     // Create charging stations
     console.log('Creating charging stations...');
     const stations = await ChargingStation.insertMany([
-      // Stations very close to default location (28.6139, 77.2090) - Connaught Place area
+        // Stations very close to default location (28.6139, 77.2090) - Connaught Place area
       {
         name: 'GreenVolt Charger',
         latitude: 28.6139,
@@ -236,6 +236,51 @@ async function seedDatabase() {
         queueLength: 1,
         amenities: ['Mountain View', 'WiFi', 'Local Food'],
         operatingHours: { open: '07:00', close: '20:00' }
+      },
+      {
+        name: 'Patna Junction EV Point',
+        latitude: 25.6090,
+        longitude: 85.1376,
+        pricePerKwh: 7.0,
+        queueLength: 2,
+        amenities: ['Railway Access', 'WiFi', 'Food Court'],
+        operatingHours: { open: '24/7', close: '24/7' }
+      },
+      {
+        name: 'Gandhi Maidan Charger',
+        latitude: 25.6225,
+        longitude: 85.1432,
+        pricePerKwh: 6.5,
+        queueLength: 1,
+        amenities: ['Park', 'Restroom', 'Vending Machine'],
+        operatingHours: { open: '06:00', close: '22:00' }
+      },
+      {
+        name: 'Eco Park Charging Hub',
+        latitude: 25.6074,
+        longitude: 85.0941,
+        pricePerKwh: 6.8,
+        queueLength: 0,
+        amenities: ['Solar Powered', 'Cafe', 'Parking'],
+        operatingHours: { open: '07:00', close: '21:00' }
+      },
+      {
+        name: 'Boring Road Fast Charge',
+        latitude: 25.6098,
+        longitude: 85.1093,
+        pricePerKwh: 8.2,
+        queueLength: 3,
+        amenities: ['Shopping', 'WiFi', 'ATM'],
+        operatingHours: { open: '08:00', close: '23:00' }
+      },
+      {
+        name: 'IIT Patna EV Station',
+        latitude: 25.5358,
+        longitude: 84.8510,
+        pricePerKwh: 6.0,
+        queueLength: 1,
+        amenities: ['Campus Access', 'WiFi', 'Canteen'],
+        operatingHours: { open: '24/7', close: '24/7' }
       }
     ]);
 
@@ -244,10 +289,20 @@ async function seedDatabase() {
     // Create battery voltage readings
     console.log('Creating battery voltage readings...');
     const voltageReadings = await BatteryVoltage.insertMany([
+      // Data for John's Tesla (ESP32-001)
+      {
+        voltage: 54.5,
+        percentage: 100,
+        timestamp: new Date(Date.now() - 14400000), // 4 hours ago
+        status: 'normal', // Changed from 'full'
+        vehicleId: 'ESP32-001',
+        userId: users[0]._id,
+        deviceId: devices[0]._id
+      },
       {
         voltage: 52.4,
         percentage: 85,
-        timestamp: new Date(),
+        timestamp: new Date(Date.now() - 10800000), // 3 hours ago
         status: 'normal',
         vehicleId: 'ESP32-001',
         userId: users[0]._id,
@@ -256,7 +311,7 @@ async function seedDatabase() {
       {
         voltage: 51.8,
         percentage: 80,
-        timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+        timestamp: new Date(Date.now() - 7200000), // 2 hours ago
         status: 'normal',
         vehicleId: 'ESP32-001',
         userId: users[0]._id,
@@ -265,17 +320,55 @@ async function seedDatabase() {
       {
         voltage: 47.2,
         percentage: 25,
-        timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+        timestamp: new Date(Date.now() - 3600000), // 1 hour ago
         status: 'low',
         vehicleId: 'ESP32-001',
         userId: users[0]._id,
         deviceId: devices[0]._id
       },
       {
+        voltage: 48.5,
+        percentage: 35,
+        timestamp: new Date(), // current
+        status: 'normal', // Changed from 'charging'
+        vehicleId: 'ESP32-001',
+        userId: users[0]._id,
+        deviceId: devices[0]._id
+      },
+
+      // Data for Jane's Nissan (ESP32-002)
+      {
+        voltage: 54.6,
+        percentage: 100,
+        timestamp: new Date(Date.now() - 86400000), // 24 hours ago
+        status: 'normal', // Changed from 'full'
+        vehicleId: 'ESP32-002',
+        userId: users[1]._id,
+        deviceId: devices[1]._id
+      },
+      {
         voltage: 53.1,
         percentage: 90,
-        timestamp: new Date(),
+        timestamp: new Date(Date.now() - 43200000), // 12 hours ago
         status: 'normal',
+        vehicleId: 'ESP32-002',
+        userId: users[1]._id,
+        deviceId: devices[1]._id
+      },
+      {
+        voltage: 50.0,
+        percentage: 60,
+        timestamp: new Date(Date.now() - 18000000), // 5 hours ago
+        status: 'normal',
+        vehicleId: 'ESP32-002',
+        userId: users[1]._id,
+        deviceId: devices[1]._id
+      },
+      {
+        voltage: 46.8,
+        percentage: 20,
+        timestamp: new Date(), // current
+        status: 'low', // Changed from 'critical'
         vehicleId: 'ESP32-002',
         userId: users[1]._id,
         deviceId: devices[1]._id

@@ -104,6 +104,10 @@ export default async function DashboardPage() {
                   <div className="text-sm">{session.user.id}</div>
                 </div>
                 <div>
+                  <div className="text-sm font-medium text-gray-500">Vehicle Id</div>
+                  <div className="text-sm">{vehicleId}</div>
+                </div>
+                <div>
                   <div className="text-sm font-medium text-gray-500">Role</div>
                   <div className="text-sm capitalize">{session.user.role}</div>
                 </div>
