@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { ChargingSession, SessionHistoryResponse } from '@/types/queue';
+import { 
+  apiCall, 
+  getUserFriendlyErrorMessage, 
+  ErrorCode 
+} from '@/lib/error-handling';
 
 interface UseSessionHistoryOptions {
   initialPage?: number;
@@ -22,19 +27,20 @@ export function useSessionHistory({ initialPage = 1, pageSize = 5 }: UseSessionH
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/sessions/history?page=${page}&limit=${limit}`);
+      const response = await apiCall<{ data: SessionHistoryResponse }>(
+        `/api/sessions/history?page=${page}&limit=${limit}`,
+        {},
+        {
+          maxAttempts: 3,
+          retryableErrors: [ErrorCode.NETWORK_ERROR, ErrorCode.TIMEOUT_ERROR, ErrorCode.INTERNAL_ERROR]
+        }
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch session history');
-      }
-      
-      const data: SessionHistoryResponse = await response.json();
-      setSessions(data.sessions);
-      setPagination(data.pagination);
-    } catch (err) {
+      setSessions(response.data?.sessions || []);
+      setPagination(response.data?.pagination || { page: 1, limit: 5, total: 0 });
+    } catch (err: any) {
       console.error('Error fetching session history:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch session history');
+      setError(getUserFriendlyErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

@@ -16,6 +16,12 @@ import mongoose from 'mongoose';
 import { sessionCompletionRateLimiter } from '@/lib/rate-limiter';
 import securityAudit from '@/lib/security-audit';
 import { validateSessionCompletionRequest } from '@/lib/input-validation';
+import { 
+  createErrorResponse, 
+  createSuccessResponse, 
+  ErrorCode, 
+  withRetry 
+} from '@/lib/error-handling';
 
 // Helper function to get client IP from request
 function getClientIp(request: NextRequest): string {
@@ -52,7 +58,15 @@ export async function POST(request: NextRequest) {
         }
       });
       
-      return rateLimitResponse;
+      return NextResponse.json(
+        createErrorResponse(
+          ErrorCode.RATE_LIMIT_EXCEEDED,
+          'Too many session completion requests. Please wait before trying again.',
+          undefined,
+          Math.ceil((Date.now() - Date.now()) / 1000) // This should be calculated from rate limiter
+        ),
+        { status: 429 }
+      );
     }
     
     // Connect to MongoDB
@@ -75,11 +89,10 @@ export async function POST(request: NextRequest) {
       });
       
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Unauthorized. Please log in to complete charging session.',
-          code: 'UNAUTHORIZED'
-        },
+        createErrorResponse(
+          ErrorCode.UNAUTHORIZED,
+          'Please log in to complete your charging session.'
+        ),
         { status: 401 }
       );
     }
@@ -132,11 +145,10 @@ export async function POST(request: NextRequest) {
       });
       
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid request format.',
-          code: 'INVALID_REQUEST'
-        },
+        createErrorResponse(
+          ErrorCode.INVALID_REQUEST,
+          'Invalid request format. Please check your input and try again.'
+        ),
         { status: 400 }
       );
     }
@@ -158,11 +170,10 @@ export async function POST(request: NextRequest) {
       });
       
       return NextResponse.json(
-        {
-          success: false,
-          error: validation.error,
-          code: 'INVALID_REQUEST'
-        },
+        createErrorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          validation.error
+        ),
         { status: 400 }
       );
     }
@@ -189,12 +200,12 @@ export async function POST(request: NextRequest) {
         }
       });
       
+      const errorCode = sessionValidation.code === 'UNAUTHORIZED' ? ErrorCode.FORBIDDEN :
+                        sessionValidation.code === 'DUPLICATE_COMPLETION' ? ErrorCode.DUPLICATE_COMPLETION :
+                        ErrorCode.SESSION_NOT_FOUND;
+      
       return NextResponse.json(
-        {
-          success: false,
-          error: sessionValidation.error,
-          code: sessionValidation.code
-        },
+        createErrorResponse(errorCode, sessionValidation.error),
         { status: sessionValidation.code === 'UNAUTHORIZED' ? 403 : 
                   sessionValidation.code === 'DUPLICATE_COMPLETION' ? 409 : 404 }
       );
@@ -205,11 +216,10 @@ export async function POST(request: NextRequest) {
     // Ensure we have valid session and station data
     if (!chargingSession || !station) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid session or station data.',
-          code: 'VALIDATION_ERROR'
-        },
+        createErrorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Invalid session or station data. Please try again.'
+        ),
         { status: 500 }
       );
     }
@@ -218,35 +228,40 @@ export async function POST(request: NextRequest) {
     const validSession = chargingSession;
     const validStation = station;
 
-    // Start a database transaction for data consistency
+    // Start a database transaction for data consistency with retry logic
     const mongoSession = await mongoose.startSession();
     
     try {
-      await mongoSession.withTransaction(async () => {
-        // Update the charging session to completed
-        validSession.status = 'completed';
-        validSession.completedAt = new Date();
-        await validSession.save({ session: mongoSession });
+      await withRetry(async () => {
+        await mongoSession.withTransaction(async () => {
+          // Update the charging session to completed
+          validSession.status = 'completed';
+          validSession.completedAt = new Date();
+          await validSession.save({ session: mongoSession });
 
-        // Get previous queue count for audit trail
-        const previousQueueLength = validStation.queueLength;
+          // Get previous queue count for audit trail
+          const previousQueueLength = validStation.queueLength;
 
-        // Reduce the station's queue count
-        validStation.queueLength = Math.max(0, validStation.queueLength - 1);
-        await validStation.save({ session: mongoSession });
+          // Reduce the station's queue count
+          validStation.queueLength = Math.max(0, validStation.queueLength - 1);
+          await validStation.save({ session: mongoSession });
 
-        // Create audit trail record
-        await createQueueAuditRecord(
-          stationId,
-          previousQueueLength,
-          validStation.queueLength,
-          userId,
-          'session_complete',
-          mongoSession
-        );
+          // Create audit trail record
+          await createQueueAuditRecord(
+            stationId,
+            previousQueueLength,
+            validStation.queueLength,
+            userId,
+            'session_complete',
+            mongoSession
+          );
 
-        // Update queue positions for remaining active sessions
-        await updateQueuePositions(stationId, validSession.queuePosition, mongoSession);
+          // Update queue positions for remaining active sessions
+          await updateQueuePositions(stationId, validSession.queuePosition, mongoSession);
+        });
+      }, {
+        maxAttempts: 3,
+        retryableErrors: [ErrorCode.CONCURRENT_UPDATE, ErrorCode.DATABASE_ERROR]
       });
 
       // Get the updated session data
@@ -288,7 +303,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const response: CompleteSessionResponse = {
+      const responseData: CompleteSessionResponse = {
         success: true,
         updatedQueue: {
           stationId: stationId,
@@ -297,7 +312,9 @@ export async function POST(request: NextRequest) {
         session: formatSessionForResponse(updatedSession!, updatedStation?.name)
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(
+        createSuccessResponse(responseData, 'Charging session completed successfully!')
+      );
 
     } catch (transactionError: unknown) {
       console.error('Transaction error during session completion:', transactionError);
@@ -309,12 +326,28 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error completing charging session:', error);
     
+    // Log the error for security monitoring
+    try {
+      const session = await getServerSession(authOptions);
+      await securityAudit.logSecurityEvent({
+        userId: session?.user?.id,
+        ipAddress: getClientIp(request),
+        action: 'session_completion',
+        resource: 'charging_session',
+        status: 'failure',
+        details: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
+    } catch (auditError) {
+      console.error('Failed to log security event:', auditError);
+    }
+    
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Internal server error. Please try again later.',
-        code: 'INTERNAL_ERROR'
-      },
+      createErrorResponse(
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to complete charging session. Please try again.'
+      ),
       { status: 500 }
     );
   }

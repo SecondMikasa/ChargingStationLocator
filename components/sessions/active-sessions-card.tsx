@@ -5,20 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Users, Clock, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Users, Clock, CheckCircle, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { ChargingSession } from '@/types/queue';
 import { useActiveSessions } from '@/hooks/use-active-sessions';
 import { formatDate } from '@/lib/utils';
+import { useToast } from '@/components/ui/toast';
+import { isRetryableError } from '@/lib/error-handling';
 
 interface ActiveSessionsCardProps {
   className?: string;
 }
 
 export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
-  const { sessions, isLoading, error, completeSession } = useActiveSessions();
+  const { sessions, isLoading, error, completeSession, fetchActiveSessions } = useActiveSessions();
   const [sessionToComplete, setSessionToComplete] = useState<ChargingSession | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { addToast } = useToast();
 
   // Handle session completion
   const handleCompleteSession = async () => {
@@ -27,12 +31,57 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
     try {
       setIsCompleting(true);
       await completeSession(sessionToComplete.id, sessionToComplete.stationId);
+      
+      // Show success message
+      addToast({
+        type: 'success',
+        title: 'Session Completed',
+        description: `Your charging session at ${sessionToComplete.stationName || 'the station'} has been completed successfully.`,
+        duration: 5000
+      });
+      
       setIsDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to complete session:', error);
+      
+      // Show error message with retry option if applicable
+      addToast({
+        type: 'error',
+        title: 'Failed to Complete Session',
+        description: error.message || 'An unexpected error occurred while completing your session.',
+        duration: 7000,
+        action: isRetryableError(error) ? {
+          label: 'Retry',
+          onClick: () => handleCompleteSession()
+        } : undefined
+      });
     } finally {
       setIsCompleting(false);
       setSessionToComplete(null);
+    }
+  };
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchActiveSessions();
+      
+      addToast({
+        type: 'success',
+        title: 'Refreshed',
+        description: 'Active sessions have been updated.',
+        duration: 3000
+      });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Refresh Failed',
+        description: 'Failed to refresh active sessions. Please try again.',
+        duration: 5000
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -71,13 +120,32 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            Error Loading Sessions
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Error Loading Sessions
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Retry
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-red-500">{error}</div>
+          <div className="text-red-600 mb-4">{error}</div>
+          <div className="text-sm text-muted-foreground">
+            Unable to load your active charging sessions. This might be due to a network issue or temporary server problem.
+          </div>
         </CardContent>
       </Card>
     );
@@ -87,9 +155,25 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
     <>
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Active Charging Sessions
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Active Charging Sessions
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing || isLoading}
+              className="flex items-center gap-2"
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -138,8 +222,16 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
                     onClick={() => openConfirmDialog(session)}
                     variant="default"
                     className="w-full"
+                    disabled={isCompleting}
                   >
-                    Complete Charging
+                    {isCompleting ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Completing...
+                      </div>
+                    ) : (
+                      'Complete Charging'
+                    )}
                   </Button>
                 </div>
               ))}

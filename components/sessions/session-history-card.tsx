@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { ChargingSession, SessionHistoryResponse } from '@/types/queue';
 import { formatDate, formatDuration } from '@/lib/utils';
+import { useToast } from '@/components/ui/toast';
+import { isRetryableError } from '@/lib/error-handling';
 
 interface SessionHistoryCardProps {
   className?: string;
@@ -16,16 +18,18 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
   const [sessions, setSessions] = useState<ChargingSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 5,
     total: 0
   });
+  const { addToast } = useToast();
 
   // Fetch session history
-  const fetchSessionHistory = async (page = 1) => {
+  const fetchSessionHistory = async (page = 1, showToast = false) => {
     try {
-      setIsLoading(true);
+      setIsLoading(page === 1);
       setError(null);
 
       const response = await fetch(`/api/sessions/history?page=${page}&limit=${pagination.limit}`);
@@ -35,25 +39,63 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
         throw new Error(errorData.error || 'Failed to fetch session history');
       }
 
-      const data: SessionHistoryResponse = await response.json();
-      setSessions(data.sessions);
-      setPagination(data.pagination);
-    } catch (err) {
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessions(data.data?.sessions || []);
+        setPagination(data.data?.pagination || { page: 1, limit: 5, total: 0 });
+
+        if (showToast) {
+          addToast({
+            type: 'success',
+            title: 'History Updated',
+            description: 'Session history has been refreshed.',
+            duration: 3000
+          });
+        }
+      } else {
+        throw new Error(data.error || 'Failed to fetch session history');
+      }
+    } catch (err: any) {
       console.error('Error fetching session history:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch session history');
+      const errorMessage = err.message || 'Failed to fetch session history';
+      setError(errorMessage);
+
+      if (showToast) {
+        addToast({
+          type: 'error',
+          title: 'Failed to Load History',
+          description: errorMessage,
+          duration: 5000,
+          action: isRetryableError(err) ? {
+            label: 'Retry',
+            onClick: () => fetchSessionHistory(page, false)
+          } : undefined
+        });
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchSessionHistory(pagination.page, true);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   // Calculate session duration
   const calculateDuration = (joinedAt: Date, completedAt: Date | undefined) => {
     if (!completedAt) return 'N/A';
-    
+
     const start = new Date(joinedAt);
     const end = new Date(completedAt);
     const durationMs = end.getTime() - start.getTime();
-    
+
     return formatDuration(durationMs);
   };
 
@@ -90,13 +132,32 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            Error Loading History
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Error Loading History
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Retry
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-red-500">{error}</div>
+          <div className="text-red-600 mb-4">{error}</div>
+          <div className="text-sm text-muted-foreground">
+            Unable to load your session history. This might be due to a network issue or temporary server problem.
+          </div>
         </CardContent>
       </Card>
     );
@@ -105,9 +166,25 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5" />
-          Charging Session History
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Charging Session History
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="flex items-center gap-2"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Refresh
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -151,17 +228,17 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
             Showing {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handlePageChange(pagination.page - 1)}
               disabled={pagination.page === 1 || isLoading}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => handlePageChange(pagination.page + 1)}
               disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit) || isLoading}
             >

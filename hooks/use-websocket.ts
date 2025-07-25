@@ -190,7 +190,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
         case 'ERROR':
           console.error('WebSocket error:', message.message);
-          setError(message.message || 'Unknown WebSocket error');
+          const errorMessage = message.message || 'Connection error occurred';
+          setError(errorMessage);
+          
+          // Attempt reconnection for certain types of errors
+          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+            setTimeout(() => {
+              console.log('Attempting to reconnect due to error...');
+              connect();
+            }, reconnectInterval);
+          }
           break;
 
         default:

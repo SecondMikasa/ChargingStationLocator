@@ -18,6 +18,9 @@
 /out/
 /.kiro/
 
+/.vscode/
+/.swc/
+
 # production
 /build
 

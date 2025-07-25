@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChargingSession, ActiveSessionsResponse } from '@/types/queue';
 import { useWebSocket } from './use-websocket';
+import { 
+  apiCall, 
+  getUserFriendlyErrorMessage, 
+  isRetryableError,
+  ErrorCode 
+} from '@/lib/error-handling';
 
 // Define types for WebSocket messages
 interface QueueUpdateMessage {
@@ -43,25 +49,22 @@ export function useActiveSessions() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/sessions/active');
+      const response = await apiCall<{ data: ActiveSessionsResponse }>('/api/sessions/active', {}, {
+        maxAttempts: 3,
+        retryableErrors: [ErrorCode.NETWORK_ERROR, ErrorCode.TIMEOUT_ERROR, ErrorCode.INTERNAL_ERROR]
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch active sessions');
-      }
-
-      const data: ActiveSessionsResponse = await response.json();
-      setSessions(data.sessions);
+      setSessions(response.data?.sessions || []);
 
       // Subscribe to WebSocket updates for each station
-      data.sessions.forEach(session => {
+      response.data?.sessions.forEach(session => {
         if (session.stationId) {
           subscribeToStation(session.stationId);
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching active sessions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch active sessions');
+      setError(getUserFriendlyErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -72,18 +75,21 @@ export function useActiveSessions() {
     try {
       setError(null);
 
-      const response = await fetch('/api/sessions/complete', {
+      const response = await apiCall('/api/sessions/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ sessionId, stationId }),
+      }, {
+        maxAttempts: 3,
+        retryableErrors: [
+          ErrorCode.NETWORK_ERROR, 
+          ErrorCode.TIMEOUT_ERROR, 
+          ErrorCode.CONCURRENT_UPDATE,
+          ErrorCode.QUEUE_UPDATE_FAILED
+        ]
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to complete session');
-      }
 
       // Remove the completed session from the list
       setSessions((prevSessions) =>
@@ -99,10 +105,11 @@ export function useActiveSessions() {
         unsubscribeFromStation(stationId);
       }
 
-      return await response.json();
-    } catch (err) {
+      return response;
+    } catch (err: any) {
       console.error('Error completing session:', err);
-      setError(err instanceof Error ? err.message : 'Failed to complete session');
+      const errorMessage = getUserFriendlyErrorMessage(err);
+      setError(errorMessage);
       throw err;
     }
   };

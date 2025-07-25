@@ -23,12 +23,14 @@ export function QueueStatusIndicator({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionRetries, setConnectionRetries] = useState(0);
 
   const { 
     subscribeToStation, 
     unsubscribeFromStation, 
     onQueueUpdate, 
-    isConnected 
+    isConnected,
+    error: wsError 
   } = useWebSocket({
     autoConnect: true
   });
@@ -38,8 +40,16 @@ export function QueueStatusIndicator({
     if (isConnected && stationId) {
       subscribeToStation(stationId);
       setIsSubscribed(true);
+      setError(null);
+      setConnectionRetries(0);
+    } else if (wsError && connectionRetries < 3) {
+      // Retry connection with exponential backoff
+      const retryDelay = Math.pow(2, connectionRetries) * 1000;
+      setTimeout(() => {
+        setConnectionRetries(prev => prev + 1);
+      }, retryDelay);
     }
-  }, [isConnected, stationId, subscribeToStation]);
+  }, [isConnected, stationId, subscribeToStation, wsError, connectionRetries]);
 
   // Handle queue updates from WebSocket
   useEffect(() => {
@@ -47,6 +57,7 @@ export function QueueStatusIndicator({
       if (update.stationId === stationId) {
         setQueueLength(update.newQueueLength);
         setLastUpdated(new Date(update.timestamp));
+        setError(null); // Clear any previous errors on successful update
       }
     };
 
@@ -59,6 +70,13 @@ export function QueueStatusIndicator({
       }
     };
   }, [stationId, onQueueUpdate, unsubscribeFromStation, isSubscribed]);
+
+  // Handle WebSocket errors
+  useEffect(() => {
+    if (wsError) {
+      setError('Connection lost. Queue status may not be current.');
+    }
+  }, [wsError]);
 
   // Get queue status color
   const getQueueStatusColor = (length: number) => {
@@ -85,9 +103,15 @@ export function QueueStatusIndicator({
 
   if (error) {
     return (
-      <div className={`flex items-center gap-2 text-red-500 text-sm ${className}`}>
-        <AlertCircle className="h-4 w-4" />
-        <span>Error loading queue status</span>
+      <div className={`flex flex-col ${className}`}>
+        <Badge variant="secondary" className="bg-yellow-50 border-yellow-200 text-yellow-800 mb-1">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          {getQueueStatusText(queueLength)}
+        </Badge>
+        <div className="text-xs text-yellow-600 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          <span>{error}</span>
+        </div>
       </div>
     );
   }

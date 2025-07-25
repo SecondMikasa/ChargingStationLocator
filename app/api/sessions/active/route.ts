@@ -8,6 +8,11 @@ import { ActiveSessionsResponse } from '@/types/queue';
 import { formatSessionForResponse } from '@/lib/session-utils';
 import { rateLimiter } from '@/lib/rate-limiter';
 import securityAudit from '@/lib/security-audit';
+import { 
+  createErrorResponse, 
+  createSuccessResponse, 
+  ErrorCode 
+} from '@/lib/error-handling';
 
 // Helper function to get client IP from request
 function getClientIp(request: NextRequest): string {
@@ -70,11 +75,10 @@ export async function GET(request: NextRequest) {
       });
       
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Unauthorized. Please log in to view active sessions.',
-          code: 'UNAUTHORIZED'
-        },
+        createErrorResponse(
+          ErrorCode.UNAUTHORIZED,
+          'Please log in to view your active sessions.'
+        ),
         { status: 401 }
       );
     }
@@ -133,15 +137,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const response: ActiveSessionsResponse = {
+    const responseData: ActiveSessionsResponse = {
       sessions: sessionsWithStationInfo,
       totalActive: sessionsWithStationInfo.length
     };
 
-    return NextResponse.json({
-      success: true,
-      ...response
-    });
+    return NextResponse.json(
+      createSuccessResponse(responseData)
+    );
 
   } catch (error) {
     console.error('Error fetching active sessions:', error);
@@ -164,11 +167,10 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Internal server error. Please try again later.',
-        code: 'INTERNAL_ERROR'
-      },
+      createErrorResponse(
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to load active sessions. Please try again.'
+      ),
       { status: 500 }
     );
   }

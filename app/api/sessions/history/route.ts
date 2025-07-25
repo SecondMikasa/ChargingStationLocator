@@ -8,6 +8,11 @@ import { SessionHistoryResponse } from '@/types/queue';
 import { rateLimiter } from '@/lib/rate-limiter';
 import securityAudit from '@/lib/security-audit';
 import { validatePagination } from '@/lib/session-utils';
+import { 
+  createErrorResponse, 
+  createSuccessResponse, 
+  ErrorCode 
+} from '@/lib/error-handling';
 
 // Helper function to get client IP from request
 function getClientIp(request: NextRequest): string {
@@ -66,11 +71,10 @@ export async function GET(request: NextRequest) {
       });
       
       return NextResponse.json(
-        { 
-          success: false,
-          error: 'Unauthorized. Please log in to view session history.',
-          code: 'UNAUTHORIZED'
-        },
+        createErrorResponse(
+          ErrorCode.UNAUTHORIZED,
+          'Please log in to view your session history.'
+        ),
         { status: 401 }
       );
     }
@@ -129,11 +133,10 @@ export async function GET(request: NextRequest) {
       });
       
       return NextResponse.json(
-        { 
-          success: false,
-          error: paginationValidation.error,
-          code: 'INVALID_REQUEST'
-        },
+        createErrorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          paginationValidation.error
+        ),
         { status: 400 }
       );
     }
@@ -195,7 +198,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const response: SessionHistoryResponse = {
+    const responseData: SessionHistoryResponse = {
       sessions: formattedSessions,
       pagination: {
         page: paginationValidation.normalizedPage,
@@ -204,10 +207,9 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json({
-      success: true,
-      ...response
-    });
+    return NextResponse.json(
+      createSuccessResponse(responseData)
+    );
   } catch (error) {
     console.error('Error fetching session history:', error);
     
@@ -229,11 +231,10 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { 
-        success: false,
-        error: 'Internal server error. Please try again later.',
-        code: 'INTERNAL_ERROR'
-      },
+      createErrorResponse(
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to load session history. Please try again.'
+      ),
       { status: 500 }
     );
   }
