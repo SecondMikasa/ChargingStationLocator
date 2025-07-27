@@ -5,8 +5,11 @@ export interface IChargingSession extends Document {
   userId: string;
   stationId: string;
   joinedAt: Date;
+  arrivedAt?: Date;
+  chargingStartedAt?: Date;
   completedAt?: Date;
   status: 'active' | 'completed' | 'cancelled';
+  trackingStatus: 'driving' | 'arrived' | 'charging' | 'completed';
   queuePosition: number;
   estimatedWaitTime?: number;
   createdAt: Date;
@@ -29,6 +32,12 @@ const ChargingSessionSchema = new Schema<IChargingSession>({
     required: [true, 'Join time is required'],
     default: Date.now,
   },
+  arrivedAt: {
+    type: Date,
+  },
+  chargingStartedAt: {
+    type: Date,
+  },
   completedAt: {
     type: Date,
   },
@@ -37,6 +46,12 @@ const ChargingSessionSchema = new Schema<IChargingSession>({
     enum: ['active', 'completed', 'cancelled'],
     required: [true, 'Status is required'],
     default: 'active',
+  },
+  trackingStatus: {
+    type: String,
+    enum: ['driving', 'arrived', 'charging', 'completed'],
+    required: [true, 'Tracking status is required'],
+    default: 'driving',
   },
   queuePosition: {
     type: Number,

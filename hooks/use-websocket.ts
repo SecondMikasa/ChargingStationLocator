@@ -83,7 +83,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   // Fetch WebSocket endpoint from API
   const fetchWebSocketEndpoint = useCallback(async () => {
     try {
-      console.log('Fetching WebSocket endpoint from /api/ws/queue-updates');
+      // console.log('Fetching WebSocket endpoint from /api/ws/queue-updates');
       const response = await fetch('/api/ws/queue-updates');
 
       if (!response.ok) {
@@ -93,7 +93,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       }
 
       const data = await response.json();
-      console.log('WebSocket endpoint response:', data);
+      // console.log('WebSocket endpoint response:', data);
 
       if (!data.wsEndpoint) {
         throw new Error('WebSocket endpoint not provided in response');
@@ -145,7 +145,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
       switch (message.type) {
         case 'CONNECTION_ESTABLISHED':
-          console.log('WebSocket connection established');
+          // console.log('WebSocket connection established');
           setIsConnected(true);
           setIsConnecting(false);
           setError(null);
@@ -179,7 +179,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           break;
 
         case 'AUTHENTICATION_SUCCESS':
-          console.log('WebSocket authentication successful');
+          // console.log('WebSocket authentication successful');
 
           // Resubscribe to stations after authentication
           subscribedStations.forEach(stationId => {
@@ -200,7 +200,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
               }
               return new Set(prev).add(message.stationId!);
             });
-            console.log(`Subscribed to station ${message.stationId}`);
+            // console.log(`Subscribed to station ${message.stationId}`);
           }
           break;
 
@@ -214,7 +214,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
               newSet.delete(message.stationId!);
               return newSet;
             });
-            console.log(`Unsubscribed from station ${message.stationId}`);
+            // console.log(`Unsubscribed from station ${message.stationId}`);
           }
           break;
 
@@ -264,7 +264,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         }
       }
 
-      console.log(`Attempting to connect to WebSocket at ${wsEndpointRef.current}`);
+      // console.log(`Attempting to connect to WebSocket at ${wsEndpointRef.current}`);
 
       // Validate WebSocket URL format
       if (!wsEndpointRef.current.startsWith('ws://') && !wsEndpointRef.current.startsWith('wss://')) {
@@ -274,7 +274,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current = new WebSocket(wsEndpointRef.current);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connection opened successfully');
+        // console.log('WebSocket connection opened successfully');
         setIsConnected(true);
         setIsConnecting(false);
         isConnectedRef.current = true;
@@ -292,7 +292,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current.onmessage = handleMessage;
 
       wsRef.current.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
+        // console.log('WebSocket connection closed:', event.code, event.reason);
         setIsConnected(false);
         setIsConnecting(false);
         isConnectedRef.current = false;
@@ -332,7 +332,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
         if (shouldReconnect) {
           reconnectAttemptsRef.current++;
-          console.log(`Reconnecting (${reconnectAttemptsRef.current}/${maxReconnectAttempts}) in ${reconnectInterval}ms...`);
+          // console.log(`Reconnecting (${reconnectAttemptsRef.current}/${maxReconnectAttempts}) in ${reconnectInterval}ms...`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -381,7 +381,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   // Subscribe to station updates
   const subscribeToStation = useCallback((stationId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log(`Subscribing to station ${stationId}`);
+      // console.log(`Subscribing to station ${stationId}`);
       wsRef.current.send(JSON.stringify({
         type: 'SUBSCRIBE_STATION',
         stationId
@@ -405,7 +405,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   // Unsubscribe from station updates
   const unsubscribeFromStation = useCallback((stationId: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log(`Unsubscribing from station ${stationId}`);
+      // console.log(`Unsubscribing from station ${stationId}`);
       wsRef.current.send(JSON.stringify({
         type: 'UNSUBSCRIBE_STATION',
         stationId

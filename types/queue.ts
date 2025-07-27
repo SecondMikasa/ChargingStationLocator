@@ -6,8 +6,11 @@ export interface ChargingSession {
   stationId: string;
   stationName?: string;
   joinedAt: Date;
+  arrivedAt?: Date;
+  chargingStartedAt?: Date;
   completedAt?: Date;
   status: 'active' | 'completed' | 'cancelled';
+  trackingStatus: 'driving' | 'arrived' | 'charging' | 'completed';
   queuePosition: number;
   estimatedWaitTime?: number;
   createdAt: Date;

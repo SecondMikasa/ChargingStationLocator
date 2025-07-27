@@ -7,7 +7,7 @@ export interface IQueueUpdate extends Document {
   newCount: number;
   updatedBy: string;
   timestamp: Date;
-  reason: 'session_complete' | 'session_join' | 'admin_adjustment';
+  reason: 'session_complete' | 'session_join' | 'session_cancel' | 'admin_adjustment';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,7 +40,7 @@ const QueueUpdateSchema = new Schema<IQueueUpdate>({
   },
   reason: {
     type: String,
-    enum: ['session_complete', 'session_join', 'admin_adjustment'],
+    enum: ['session_complete', 'session_join', 'session_cancel', 'admin_adjustment'],
     required: [true, 'Reason is required'],
   },
 }, {

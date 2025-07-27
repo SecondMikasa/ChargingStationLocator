@@ -213,7 +213,7 @@ export async function createQueueAuditRecord(
   previousCount: number,
   newCount: number,
   updatedBy: string,
-  reason: 'session_complete' | 'session_join' | 'admin_adjustment',
+  reason: 'session_complete' | 'session_join' | 'session_cancel' | 'admin_adjustment',
   mongoSession?: ClientSession
 ): Promise<void> {
   const auditData = {
@@ -241,8 +241,11 @@ export function formatSessionForResponse(
     userId: string;
     stationId: string;
     joinedAt: Date;
+    arrivedAt?: Date;
+    chargingStartedAt?: Date;
     completedAt?: Date;
     status: 'active' | 'completed' | 'cancelled';
+    trackingStatus?: 'driving' | 'arrived' | 'charging' | 'completed';
     queuePosition: number;
     estimatedWaitTime?: number;
     createdAt: Date;
@@ -256,8 +259,11 @@ export function formatSessionForResponse(
     stationId: session.stationId,
     stationName: stationName || 'Unknown Station',
     joinedAt: session.joinedAt,
+    arrivedAt: session.arrivedAt,
+    chargingStartedAt: session.chargingStartedAt,
     completedAt: session.completedAt,
     status: session.status,
+    trackingStatus: session.trackingStatus || 'driving', // Default to 'driving' for existing sessions
     queuePosition: session.queuePosition,
     estimatedWaitTime: session.estimatedWaitTime,
     createdAt: session.createdAt,
