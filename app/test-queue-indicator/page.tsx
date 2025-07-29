@@ -7,7 +7,7 @@ import { QueueStatusIndicator } from '@/components/stations/queue-status-indicat
 import { ActiveSessionsCard } from '@/components/sessions/active-sessions-card';
 
 export default function TestQueueIndicatorPage() {
-  const [stationId, setStationId] = useState('test-station-1');
+  const [stationId] = useState('test-station-1');
   const [queueLength, setQueueLength] = useState(3);
   const [userPosition, setUserPosition] = useState<number | undefined>(2);
 

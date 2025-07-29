@@ -58,7 +58,7 @@ export function EstimatedWaitTime({
       <div className={`flex items-center ${className}`}>
         <AlertCircle className="h-4 w-4 mr-1 text-green-600 dark:text-green-400" />
         <span className="text-sm font-medium text-green-600 dark:text-green-400">
-          You're next!
+          You&apos;re next!
           {showDetails && (
             <span className="text-gray-500 dark:text-gray-400 ml-1 font-normal">
               (Position: 1)

@@ -9,12 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { 
-  apiCall, 
   ErrorCode, 
   createErrorResponse,
   isRetryableError 
 } from '@/lib/error-handling';
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 export function ErrorHandlingDemo() {
   const [isLoading, setIsLoading] = useState(false);
@@ -78,17 +77,18 @@ export function ErrorHandlingDemo() {
             'An unexpected error occurred.'
           );
       }
-    } catch (error: any) {
-      console.error('Demo error:', error);
-      setLastResult(`❌ Error: ${error.error || error.message}`);
+    } catch (error: unknown) {
+      const errorObj = error as { error?: string; message?: string };
+      console.error('Demo error:', errorObj);
+      setLastResult(`❌ Error: ${errorObj.error || errorObj.message}`);
       
       // Show appropriate toast based on error type
       addToast({
         type: 'error',
         title: 'Operation Failed',
-        description: error.error || error.message,
+        description: errorObj.error || errorObj.message,
         duration: 7000,
-        action: isRetryableError(error) ? {
+        action: isRetryableError(errorObj) ? {
           label: 'Retry',
           onClick: () => simulateApiCall(scenario)
         } : undefined

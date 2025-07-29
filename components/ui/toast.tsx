@@ -170,25 +170,3 @@ function ToastItem({ toast }: { toast: Toast }) {
   );
 }
 
-// Convenience functions for different toast types
-export const toast = {
-  success: (title: string, description?: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({ type: 'success', title, description, ...options });
-  },
-  
-  error: (title: string, description?: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({ type: 'error', title, description, duration: 7000, ...options });
-  },
-  
-  warning: (title: string, description?: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({ type: 'warning', title, description, ...options });
-  },
-  
-  info: (title: string, description?: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({ type: 'info', title, description, ...options });
-  }
-};

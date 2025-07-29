@@ -1,0 +1,101 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { withAdminAuth } from '@/lib/admin-utils';
+import connectDB from '@/lib/mongodb';
+import ChargingStation from '@/models/ChargingStation';
+import { z } from 'zod';
+
+// Validation schema for station data
+const StationSchema = z.object({
+  name: z.string().min(1, 'Station name is required').trim(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  pricePerKwh: z.number().positive('Price must be positive'),
+  queueLength: z.number().int().min(0, 'Queue length cannot be negative'),
+  amenities: z.array(z.string()).optional().default([]),
+  operatingHours: z.object({
+    open: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+    close: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format')
+  }).optional().default({ open: '06:00', close: '22:00' })
+});
+
+// GET /api/admin/stations - Get all stations
+export const GET = withAdminAuth(async () => {
+  try {
+    await connectDB();
+    
+    const stations = await ChargingStation.find({}).sort({ createdAt: -1 });
+    
+    return NextResponse.json({
+      success: true,
+      stations: stations.map(station => ({
+        id: station._id.toString(),
+        name: station.name,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        pricePerKwh: station.pricePerKwh,
+        queueLength: station.queueLength,
+        amenities: station.amenities,
+        operatingHours: station.operatingHours,
+        createdAt: station.createdAt,
+        updatedAt: station.updatedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching stations:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch stations' },
+      { status: 500 }
+    );
+  }
+});
+
+// POST /api/admin/stations - Add new station
+export const POST = withAdminAuth(async (req: NextRequest) => {
+  try {
+    await connectDB();
+    
+    const body = await req.json();
+    
+    // Validate request data
+    const validatedData = StationSchema.parse(body);
+    
+    // Create new station
+    const station = new ChargingStation(validatedData);
+    await station.save();
+    
+    return NextResponse.json({
+      success: true,
+      station: {
+        id: station._id.toString(),
+        name: station.name,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        pricePerKwh: station.pricePerKwh,
+        queueLength: station.queueLength,
+        amenities: station.amenities,
+        operatingHours: station.operatingHours,
+        createdAt: station.createdAt,
+        updatedAt: station.updatedAt
+      }
+    }, { status: 201 });
+    
+  } catch (error) {
+    console.error('Error creating station:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Validation error',
+          details: error.message
+        },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { success: false, error: 'Failed to create station' },
+      { status: 500 }
+    );
+  }
+});

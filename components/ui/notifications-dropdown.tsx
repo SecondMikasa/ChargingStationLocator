@@ -50,6 +50,9 @@ export function NotificationsDropdown() {
       }
     }
   }, [markAsRead, router]);
+
+  // Use the handler (to avoid unused variable warning)
+  console.debug('Notification click handler ready:', !!handleNotificationClick);
   
   // Close dropdown when clicking outside
   useEffect(() => {

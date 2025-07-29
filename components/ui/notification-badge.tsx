@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserNotification } from '@/types/queue';
+
 import { Bell } from 'lucide-react';
 
 interface NotificationBadgeProps {

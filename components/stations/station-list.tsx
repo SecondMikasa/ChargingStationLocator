@@ -91,7 +91,7 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
         
         // Check if data.sessions exists and is an array
         if (data && data.sessions && Array.isArray(data.sessions)) {
-          data.sessions.forEach((session: any) => {
+          data.sessions.forEach((session: { stationId?: string; queuePosition?: number }) => {
             if (session.stationId && session.queuePosition) {
               sessionMap[session.stationId] = session.queuePosition;
             }
@@ -150,12 +150,7 @@ export function StationList({ stations, loading = false, userLocation, onQueueUp
     }
   };
 
-  // Get queue status color
-  const getQueueStatusColor = (queueLength: number) => {
-    if (queueLength === 0) return 'bg-green-100 text-green-800';
-    if (queueLength <= 2) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
-  };
+
 
   if (loading) {
     return (

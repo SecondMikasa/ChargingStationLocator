@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Users, Clock, CheckCircle, AlertCircle, RefreshCw, Loader2, X, MapPin, Navigation } from 'lucide-react';
+import { Users, Clock, CheckCircle, AlertCircle, RefreshCw, Loader2, X, Navigation } from 'lucide-react';
 import { ChargingSession } from '@/types/queue';
 import { useActiveSessions } from '@/hooks/use-active-sessions';
 import { formatDate } from '@/lib/utils';
@@ -85,12 +85,13 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
         duration: 3000
       });
 
-    } catch (error: any) {
-      console.error('Failed to update tracking status:', error);
+    } catch (error: unknown) {
+      const errorObj = error as { message?: string };
+      console.error('Failed to update tracking status:', errorObj);
       addToast({
         type: 'error',
         title: 'Update Failed',
-        description: error.message || 'Failed to update status. Please try again.',
+        description: errorObj.message || 'Failed to update status. Please try again.',
         duration: 5000
       });
     } finally {
@@ -126,12 +127,13 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
         duration: 3000
       });
 
-    } catch (error: any) {
-      console.error('Failed to cancel session:', error);
+    } catch (error: unknown) {
+      const errorObj = error as { message?: string };
+      console.error('Failed to cancel session:', errorObj);
       addToast({
         type: 'error',
         title: 'Cancellation Failed',
-        description: error.message || 'Failed to cancel session. Please try again.',
+        description: errorObj.message || 'Failed to cancel session. Please try again.',
         duration: 5000
       });
     } finally {
@@ -162,16 +164,17 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
       });
 
       setIsDialogOpen(false);
-    } catch (error: any) {
-      console.error('Failed to complete session:', error);
+    } catch (error: unknown) {
+      const errorObj = error as { message?: string };
+      console.error('Failed to complete session:', errorObj);
 
       // Show error message with retry option if applicable
       addToast({
         type: 'error',
         title: 'Failed to Complete Session',
-        description: error.message || 'An unexpected error occurred while completing your session.',
+        description: errorObj.message || 'An unexpected error occurred while completing your session.',
         duration: 7000,
-        action: isRetryableError(error) ? {
+        action: isRetryableError(errorObj) ? {
           label: 'Retry',
           onClick: () => handleCompleteSession()
         } : undefined
@@ -194,7 +197,7 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
         description: 'Active sessions have been updated.',
         duration: 3000
       });
-    } catch (error: any) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Refresh Failed',
@@ -276,7 +279,7 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
                 Updating...
               </div>
             ) : (
-              '📍 I\'ve Arrived at Station'
+              '📍 I&apos;ve Arrived at Station'
             )}
           </Button>
         );
@@ -430,7 +433,7 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
                         {session.queuePosition === 1 ? (
                           <span className="flex items-center gap-1">
                             <CheckCircle className="h-3 w-3" />
-                            You're next!
+                            You&apos;re next!
                           </span>
                         ) : (
                           `Position ${session.queuePosition}`

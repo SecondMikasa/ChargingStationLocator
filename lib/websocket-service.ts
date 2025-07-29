@@ -108,7 +108,7 @@ class WebSocketService {
   private setupEventHandlers(): void {
     if (!this.wss) return;
 
-    this.wss.on('connection', (ws: WebSocket, _request) => {
+    this.wss.on('connection', (ws: WebSocket) => {
       console.log('New WebSocket connection established');
 
       // Initialize client connection

@@ -59,7 +59,7 @@ export function QueueStatusIndicator({
 
   // Handle queue updates from WebSocket
   useEffect(() => {
-    const handleQueueUpdate = (update: any) => {
+    const handleQueueUpdate = (update: { stationId: string; newQueueLength: number; timestamp: string }) => {
       if (update.stationId === stationId) {
         setQueueLength(update.newQueueLength);
         setLastUpdated(new Date(update.timestamp));
@@ -104,7 +104,7 @@ export function QueueStatusIndicator({
   const getLastUpdatedText = () => {
     try {
       return `Updated ${formatDistanceToNow(lastUpdated, { addSuffix: true })}`;
-    } catch (err) {
+    } catch {
       return 'Just updated';
     }
   };
@@ -137,7 +137,7 @@ export function QueueStatusIndicator({
       {userPosition && (
         <div className="text-xs font-medium mb-1">
           {userPosition === 1 ? (
-            <span className="text-green-600">You're next!</span>
+            <span className="text-green-600">You&apos;re next!</span>
           ) : (
             <span>Your position: {userPosition}</span>
           )}

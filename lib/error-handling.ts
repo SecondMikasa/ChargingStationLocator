@@ -3,35 +3,35 @@ export enum ErrorCode {
   // Authentication & Authorization
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
-  
+
   // Validation
   INVALID_REQUEST = 'INVALID_REQUEST',
   VALIDATION_ERROR = 'VALIDATION_ERROR',
-  
+
   // Session Management
   SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
   INVALID_SESSION = 'INVALID_SESSION',
   DUPLICATE_COMPLETION = 'DUPLICATE_COMPLETION',
   SESSION_ALREADY_COMPLETED = 'SESSION_ALREADY_COMPLETED',
-  
+
   // Queue Management
   QUEUE_UPDATE_FAILED = 'QUEUE_UPDATE_FAILED',
   CONCURRENT_UPDATE = 'CONCURRENT_UPDATE',
   INVALID_QUEUE_STATE = 'INVALID_QUEUE_STATE',
-  
+
   // Rate Limiting
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  
+
   // Network & Infrastructure
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   DATABASE_ERROR = 'DATABASE_ERROR',
-  
+
   // WebSocket
   WEBSOCKET_CONNECTION_FAILED = 'WEBSOCKET_CONNECTION_FAILED',
   WEBSOCKET_DISCONNECTED = 'WEBSOCKET_DISCONNECTED',
-  
+
   // Unknown
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
@@ -47,13 +47,13 @@ export interface ErrorResponse {
 }
 
 // Success response interface
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true;
   data?: T;
   message?: string;
 }
 
-export type ApiResponse<T = any> = SuccessResponse<T> | ErrorResponse;
+export type ApiResponse<T = unknown> = SuccessResponse<T> | ErrorResponse;
 
 // User-friendly error messages mapping
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -103,9 +103,7 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   ]
 };
 
-/**
- * Creates a standardized error response
- */
+// Creates a standardized error response
 export function createErrorResponse(
   code: ErrorCode,
   customMessage?: string,
@@ -132,46 +130,51 @@ export function createSuccessResponse<T>(data?: T, message?: string): SuccessRes
 }
 
 // Determines error code from various error types
-export function getErrorCode(error: any): ErrorCode {
-  // Check if it's already an ErrorResponse
-  if (error?.code && Object.values(ErrorCode).includes(error.code)) {
-    return error.code;
-  }
+export function getErrorCode(error: unknown): ErrorCode {
+  // Type guard to check if error is an object with properties
+  if (typeof error === 'object' && error !== null) {
+    const errorObj = error as Record<string, unknown>;
 
-  // Check for specific error patterns
-  if (error?.name === 'ValidationError') {
-    return ErrorCode.VALIDATION_ERROR;
-  }
-
-  if (error?.name === 'MongoError' || error?.name === 'MongoServerError') {
-    if (error.code === 11000) {
-      return ErrorCode.DUPLICATE_COMPLETION;
+    // Check if it's already an ErrorResponse
+    if (errorObj.code && Object.values(ErrorCode).includes(errorObj.code as ErrorCode)) {
+      return errorObj.code as ErrorCode;
     }
-    return ErrorCode.DATABASE_ERROR;
-  }
 
-  if (error?.message?.includes('timeout')) {
-    return ErrorCode.TIMEOUT_ERROR;
-  }
+    // Check for specific error patterns
+    if (errorObj.name === 'ValidationError') {
+      return ErrorCode.VALIDATION_ERROR;
+    }
 
-  if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
-    return ErrorCode.NETWORK_ERROR;
-  }
+    if (errorObj.name === 'MongoError' || errorObj.name === 'MongoServerError') {
+      if (errorObj.code === 11000) {
+        return ErrorCode.DUPLICATE_COMPLETION;
+      }
+      return ErrorCode.DATABASE_ERROR;
+    }
 
-  if (error?.message?.includes('unauthorized')) {
-    return ErrorCode.UNAUTHORIZED;
-  }
+    const message = typeof errorObj.message === 'string' ? errorObj.message : '';
 
-  if (error?.message?.includes('forbidden')) {
-    return ErrorCode.FORBIDDEN;
+    if (message.includes('timeout')) {
+      return ErrorCode.TIMEOUT_ERROR;
+    }
+
+    if (message.includes('network') || message.includes('fetch')) {
+      return ErrorCode.NETWORK_ERROR;
+    }
+
+    if (message.includes('unauthorized')) {
+      return ErrorCode.UNAUTHORIZED;
+    }
+
+    if (message.includes('forbidden')) {
+      return ErrorCode.FORBIDDEN;
+    }
   }
 
   return ErrorCode.UNKNOWN_ERROR;
 }
 
-/**
- * Calculates delay for exponential backoff
- */
+// Calculates delay for exponential backoff
 function calculateBackoffDelay(attempt: number, config: RetryConfig): number {
   const delay = config.baseDelayMs * Math.pow(config.backoffMultiplier, attempt);
   return Math.min(delay, config.maxDelayMs);
@@ -184,15 +187,13 @@ function addJitter(delay: number): number {
   return delay + Math.random() * 1000;
 }
 
-/**
- * Retry wrapper with exponential backoff
- */
+// Retry wrapper with exponential backoff
 export async function withRetry<T>(
   operation: () => Promise<T>,
   config: Partial<RetryConfig> = {}
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-  let lastError: any;
+  let lastError: unknown;
 
   for (let attempt = 0; attempt < finalConfig.maxAttempts; attempt++) {
     try {
@@ -249,7 +250,7 @@ export async function fetchWithRetry(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorCode = errorData.code || getErrorCode({ message: `HTTP ${response.status}` });
-        
+
         throw {
           code: errorCode,
           message: errorData.error || `Request failed with status ${response.status}`,
@@ -258,10 +259,10 @@ export async function fetchWithRetry(
       }
 
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
 
-      if (error.name === 'AbortError') {
+      if (typeof error === 'object' && error !== null && (error as { name?: string }).name === 'AbortError') {
         throw {
           code: ErrorCode.TIMEOUT_ERROR,
           message: 'Request timed out'
@@ -279,7 +280,7 @@ export async function fetchWithRetry(
 export async function parseApiResponse<T>(response: Response): Promise<T> {
   try {
     const data = await response.json();
-    
+
     if (!data.success) {
       throw {
         code: data.code || ErrorCode.UNKNOWN_ERROR,
@@ -290,9 +291,12 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
     }
 
     return data;
-  } catch (error: any) {
-    if (error.code) {
-      throw error;
+  } catch (error: unknown) {
+    if (typeof error === 'object' && error !== null) {
+      const errorObj = error as { code?: ErrorCode };
+      if (errorObj.code) {
+        throw error;
+      }
     }
 
     throw {
@@ -311,18 +315,25 @@ export async function apiCall<T>(
   try {
     const response = await fetchWithRetry(url, options, retryConfig);
     return await parseApiResponse<T>(response);
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorCode = getErrorCode(error);
-    const errorMessage = error.message || ERROR_MESSAGES[errorCode];
-    
-    throw createErrorResponse(errorCode, errorMessage, error.details);
+    let errorMessage = ERROR_MESSAGES[errorCode];
+    let details: string | undefined;
+
+    if (typeof error === 'object' && error !== null) {
+      const errorObj = error as { message?: string; details?: string };
+      errorMessage = errorObj.message || errorMessage;
+      details = errorObj.details;
+    }
+
+    throw createErrorResponse(errorCode, errorMessage, details);
   }
 }
 
 /**
  * Utility to check if an error is retryable
  */
-export function isRetryableError(error: any): boolean {
+export function isRetryableError(error: unknown): boolean {
   const errorCode = getErrorCode(error);
   return DEFAULT_RETRY_CONFIG.retryableErrors.includes(errorCode);
 }
@@ -330,20 +341,26 @@ export function isRetryableError(error: any): boolean {
 /**
  * Utility to get user-friendly error message
  */
-export function getUserFriendlyErrorMessage(error: any): string {
+export function getUserFriendlyErrorMessage(error: unknown): string {
   const errorCode = getErrorCode(error);
-  return error.message || ERROR_MESSAGES[errorCode];
+
+  if (typeof error === 'object' && error !== null) {
+    const errorObj = error as { message?: string };
+    return errorObj.message || ERROR_MESSAGES[errorCode];
+  }
+
+  return ERROR_MESSAGES[errorCode];
 }
 
 /**
  * Debounce utility for preventing rapid successive calls
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
@@ -351,12 +368,12 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // Throttle utility for limiting call frequency
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);

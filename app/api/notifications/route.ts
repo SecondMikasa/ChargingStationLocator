@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     // Build query
-    const query: any = { userId };
+    const query: { userId: string; read?: boolean } = { userId };
     if (unreadOnly) {
       query.read = false;
     }

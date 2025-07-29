@@ -64,6 +64,5 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Export the WebSocket service functions for use in other parts of the application
-export const broadcastQueueUpdate = webSocketService.broadcastQueueUpdate.bind(webSocketService);
-export const broadcastUserNotification = webSocketService.broadcastUserNotification.bind(webSocketService);
+// WebSocket service functions are available through the webSocketService import
+// Use webSocketService.broadcastQueueUpdate() and webSocketService.broadcastUserNotification() directly

@@ -117,7 +117,7 @@ export function StationMapClient({ stations, userLocation, loading = false, onSt
         
         // Check if data.sessions exists and is an array
         if (data && data.sessions && Array.isArray(data.sessions)) {
-          data.sessions.forEach((session: any) => {
+          data.sessions.forEach((session: { stationId?: string; queuePosition?: number }) => {
             if (session.stationId && session.queuePosition) {
               sessionMap[session.stationId] = session.queuePosition;
             }

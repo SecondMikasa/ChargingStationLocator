@@ -229,14 +229,28 @@
     - Add loading states and location permission handling
     - _Requirements: 3.1, 3.2, 3.5_
 
-- [ ] 8. Implement admin panel functionality
-  - [ ] 8.1 Implement admin role-based access control
+- [-] 8. Implement admin panel functionality
+
+
+  - [x] 8.1 Implement admin role-based access control
+
+
     - Add admin role checking using NextAuth session
     - Create admin route protection middleware
     - Set up admin user in mock database with 'admin' role
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 8.2 Create admin station management API
+
+
+  - [x] 8.2 Create admin station management API
+
+
+
+
+
+
+
+
     - Implement POST /api/admin/stations for adding new stations
     - Add PUT and DELETE endpoints for station updates and removal
     - Include validation and error handling for station data

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { ChargingSession, SessionHistoryResponse } from '@/types/queue';
+import { ChargingSession } from '@/types/queue';
 import { formatDate, formatDuration } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import { isRetryableError } from '@/lib/error-handling';
@@ -27,7 +27,7 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
   const { addToast } = useToast();
 
   // Fetch session history
-  const fetchSessionHistory = async (page = 1, showToast = false) => {
+  const fetchSessionHistory = useCallback(async (page = 1, showToast = false) => {
     try {
       setIsLoading(page === 1);
       setError(null);
@@ -56,9 +56,10 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
       } else {
         throw new Error(data.error || 'Failed to fetch session history');
       }
-    } catch (err: any) {
-      console.error('Error fetching session history:', err);
-      const errorMessage = err.message || 'Failed to fetch session history';
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string };
+      console.error('Error fetching session history:', errorObj);
+      const errorMessage = errorObj.message || 'Failed to fetch session history';
       setError(errorMessage);
 
       if (showToast) {
@@ -67,7 +68,7 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
           title: 'Failed to Load History',
           description: errorMessage,
           duration: 5000,
-          action: isRetryableError(err) ? {
+          action: isRetryableError(errorObj) ? {
             label: 'Retry',
             onClick: () => fetchSessionHistory(page, false)
           } : undefined
@@ -76,7 +77,7 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.limit, addToast]);
 
   // Handle manual refresh
   const handleRefresh = async () => {
@@ -108,7 +109,7 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
   // Fetch sessions on component mount
   useEffect(() => {
     fetchSessionHistory();
-  }, []);
+  }, [fetchSessionHistory]);
 
   if (isLoading && sessions.length === 0) {
     return (

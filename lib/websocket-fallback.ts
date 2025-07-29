@@ -9,7 +9,7 @@ process.env.WS_NO_UTF_8_VALIDATE = '1';
 const originalWebSocketServer = WebSocketServer;
 
 export class SafeWebSocketServer extends originalWebSocketServer {
-  constructor(options: any) {
+  constructor(options: Record<string, unknown>) {
     // Force safe options
     const safeOptions = {
       ...options,

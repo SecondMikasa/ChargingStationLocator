@@ -25,8 +25,7 @@ export class NotificationService {
     sessionId: string,
     previousPosition: number,
     newPosition: number,
-    stationName: string,
-    _stationId?: string
+    stationName: string
   ): Promise<IUserNotification> {
     await connectDB();
 
