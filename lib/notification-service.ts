@@ -186,8 +186,7 @@ export class NotificationService {
           session._id.toString(),
           previousPosition,
           newPosition,
-          stationName,
-          stationId
+          stationName
         );
       }
 
@@ -204,8 +203,7 @@ export class NotificationService {
           nextSession._id.toString(),
           2, // They were in position 2 before
           1, // Now they're in position 1
-          stationName,
-          stationId
+          stationName
         );
       }
 

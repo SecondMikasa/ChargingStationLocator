@@ -1,10 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { QueueStatusIndicator } from '@/components/stations/queue-status-indicator';
-import { ActiveSessionsCard } from '@/components/sessions/active-sessions-card';
+// Dynamically import components that use toast to avoid SSR issues
+const QueueStatusIndicator = dynamic(
+  () => import('@/components/stations/queue-status-indicator').then(mod => ({ default: mod.QueueStatusIndicator })),
+  { ssr: false }
+);
+
+const ActiveSessionsCard = dynamic(
+  () => import('@/components/sessions/active-sessions-card').then(mod => ({ default: mod.ActiveSessionsCard })),
+  { ssr: false }
+);
 
 export default function TestQueueIndicatorPage() {
   const [stationId] = useState('test-station-1');
