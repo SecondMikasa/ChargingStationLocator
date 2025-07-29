@@ -1,25 +1,12 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-options";
-import { redirect } from "next/navigation";
 import { AddStationForm } from "@/components/admin";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default async function AddStationPage() {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-        redirect("/login");
-    }
-
-    if (session.user.role !== 'admin') {
-        redirect("/dashboard");
-    }
+export default function AddStationPage() {
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto py-8 px-4">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <Button variant="outline" size="sm" asChild>
@@ -38,9 +25,8 @@ export default async function AddStationPage() {
                     </div>
                 </div>
 
-                {/* Add Station Form */}
-                <AddStationForm />
-            </div>
+            {/* Add Station Form */}
+            <AddStationForm />
         </div>
     );
 }

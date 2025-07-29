@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from '@/components/ui/sheet';
 import {
   Settings,
   MapPin,
@@ -43,13 +43,8 @@ const navigationItems = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Stations',
-    href: '/admin/stations',
-    icon: MapPin,
-  },
-  {
     title: 'Add Station',
-    href: '/admin/stations/add',
+    href: '/admin/add',
     icon: Zap,
   },
 ];
@@ -67,7 +62,7 @@ export function AdminNavigation({ session }: AdminNavigationProps) {
       {navigationItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
-        
+
         return (
           <Link
             key={item.href}
@@ -162,14 +157,16 @@ export function AdminNavigation({ session }: AdminNavigationProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 pb-4 border-b">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                     <Settings className="h-4 w-4 text-primary-foreground" />
                   </div>
                   <span className="font-semibold">Admin Panel</span>
-                </div>
-                
+                </SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 mt-4">
+
                 <nav className="flex flex-col gap-2">
                   <NavItems mobile />
                 </nav>

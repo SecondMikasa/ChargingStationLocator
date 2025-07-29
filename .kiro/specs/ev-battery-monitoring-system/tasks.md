@@ -266,7 +266,8 @@
     - Add LocationPicker component with interactive map
     - _Requirements: 5.3, 5.4, 6.1, 6.2, 6.3_
 
-  - [-] 8.4 Create admin pages with role-based access
+  - [x] 8.4 Create admin pages with role-based access
+
 
 
 

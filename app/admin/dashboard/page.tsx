@@ -7,6 +7,11 @@ import Link from "next/link";
 
 export default async function AdminDashboardPage() {
     const session = await getServerSession(authOptions);
+    
+    // Session is guaranteed to exist and be admin due to layout authentication
+    if (!session) {
+        throw new Error('Session not found');
+    }
 
     return (
         <div className="container mx-auto py-8 px-4">
@@ -59,8 +64,8 @@ export default async function AdminDashboardPage() {
                     </div>
                 </div>
 
-            {/* Station Management */}
-            <StationTable />
+                {/* Station Management */}
+                <StationTable />
         </div>
     );
 }
