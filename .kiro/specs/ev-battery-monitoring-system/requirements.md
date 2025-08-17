@@ -82,6 +82,19 @@ The EV Battery Monitoring and Smart Charging Station Recommender System is a res
 5. WHEN submission is successful THEN the system SHALL display a success toast and redirect to the station list
 6. WHEN submission fails THEN the system SHALL display appropriate error messages
 
+### Requirement 6
+
+**User Story:** As a system administrator, I want to charging stations added by me should be displayed under
+
+#### Acceptance Criteria
+
+1. WHEN I access the add station form THEN the system SHALL provide input fields for station name, price per kWh, and queue length
+2. WHEN entering location data THEN the system SHALL provide two options: manual latitude/longitude entry OR interactive map pin placement
+3. WHEN using the map option THEN the system SHALL auto-fill latitude and longitude coordinates when a pin is dropped
+4. WHEN I submit the form THEN the system SHALL send data to POST /api/admin/add-station
+5. WHEN submission is successful THEN the system SHALL display a success toast and redirect to the station list
+6. WHEN submission fails THEN the system SHALL display appropriate error messages
+
 ### Requirement 7
 
 **User Story:** As a user of the application, I want a responsive and modern interface that works on all devices, so that I can access the system from my phone, tablet, or desktop.

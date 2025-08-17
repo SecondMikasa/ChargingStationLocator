@@ -146,13 +146,10 @@ export class NotificationService {
     return notification;
   }
 
-  /**
-   * Updates notifications for all users in a queue when positions change
-   * Called after a session is completed to notify users of their new positions
-   * 
-   * @param stationId - The ID of the station where queue positions changed
-   * @param completedPosition - The position that was completed/removed
-   */
+  /*
+   Updates notifications for all users in a queue when positions change
+   Called after a session is completed to notify users of their new positions
+  */
   public static async updateQueuePositionNotifications(
     stationId: string,
     completedPosition: number
@@ -238,13 +235,7 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Gets unread notifications for a user
-   * 
-   * @param userId - The ID of the user
-   * @param limit - Maximum number of notifications to return
-   * @returns Array of unread notifications
-   */
+  // Gets unread notifications for a user
   public static async getUnreadNotifications(
     userId: string,
     limit: number = 10
@@ -259,13 +250,7 @@ export class NotificationService {
       .limit(limit);
   }
 
-  /**
-   * Marks notifications as read
-   * 
-   * @param notificationIds - Array of notification IDs to mark as read
-   * @param userId - The ID of the user (for security validation)
-   * @returns Number of notifications updated
-   */
+  // Marks notifications as read
   public static async markNotificationsAsRead(
     notificationIds: string[],
     userId: string
@@ -285,13 +270,7 @@ export class NotificationService {
     return result.modifiedCount;
   }
 
-  /**
-   * Deletes old read notifications to keep the database clean
-   * 
-   * @param olderThan - Delete notifications older than this date
-   * @param onlyRead - If true, only delete read notifications
-   * @returns Number of notifications deleted
-   */
+  // Deletes old read notifications to keep the database clean
   public static async cleanupOldNotifications(
     olderThan: Date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Default: 30 days old
     onlyRead: boolean = true

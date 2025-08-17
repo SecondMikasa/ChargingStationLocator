@@ -17,6 +17,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { appToasts } from "@/lib/toast-utils";
+import { LoadingButton } from "@/components/ui/ui-polish";
 
 export function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -46,12 +48,15 @@ export function SignInForm() {
       });
 
       if (result?.error) {
+        appToasts.loginError();
         setError("Invalid email or password. Please try again.");
         setIsLoading(false);
         return;
       }
 
       if (result?.ok) {
+        appToasts.loginSuccess();
+        
         // Get the updated session to check user role
         const session = await getSession();
         
@@ -65,6 +70,7 @@ export function SignInForm() {
       }
     } catch (error) {
       console.error("Sign in error:", error);
+      appToasts.networkError();
       setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
     }
@@ -144,10 +150,14 @@ export function SignInForm() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Signing in..." : "Sign in"}
-          </Button>
+          <LoadingButton 
+            type="submit" 
+            className="w-full" 
+            loading={isLoading}
+            loadingText="Signing in..."
+          >
+            Sign in
+          </LoadingButton>
         </form>
       </Form>
 

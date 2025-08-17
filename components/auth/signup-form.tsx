@@ -17,7 +17,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { appToasts } from "@/lib/toast-utils";
+import { LoadingButton } from "@/components/ui/ui-polish";
 
 export function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -58,13 +59,14 @@ export function SignUpForm() {
       const registerResult = await registerResponse.json();
 
       if (!registerResult.success) {
+        appToasts.registrationError();
         setError(registerResult.error || "Registration failed. Please try again.");
         setIsLoading(false);
         return;
       }
 
       // Show success message
-      toast.success("Account created successfully! Signing you in...");
+      appToasts.registrationSuccess();
 
       // Auto-signin after successful registration
       const signInResult = await signIn("credentials", {
@@ -75,19 +77,19 @@ export function SignUpForm() {
 
       if (signInResult?.error) {
         // Registration succeeded but signin failed - redirect to login
-        toast.error("Please sign in with your new account");
+        appToasts.loginError();
         router.push("/login");
         return;
       }
 
       if (signInResult?.ok) {
         // Successful signin - redirect to device registration
-        toast.success("Welcome! Please register your EV device.");
         router.push("/register-device");
         router.refresh();
       }
     } catch (error) {
       console.error("Registration error:", error);
+      appToasts.networkError();
       setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
     }
@@ -224,10 +226,14 @@ export function SignUpForm() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Creating account..." : "Create account"}
-          </Button>
+          <LoadingButton 
+            type="submit" 
+            className="w-full" 
+            loading={isLoading}
+            loadingText="Creating account..."
+          >
+            Create account
+          </LoadingButton>
         </form>
       </Form>
 
