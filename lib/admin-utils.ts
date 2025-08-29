@@ -34,6 +34,15 @@ export async function requireAdmin() {
 }
 
 /**
+ * Get the current admin's ID
+ * Throws error if not admin
+ */
+export async function getCurrentAdminId(): Promise<string> {
+  const session = await requireAdmin();
+  return session.user.id;
+}
+
+/**
  * Middleware function to check admin access for API routes
  */
 export function withAdminAuth<T, TContext = unknown>(

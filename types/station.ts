@@ -13,6 +13,15 @@ export interface ChargingStation {
     open: string;
     close: string;
   };
+  adminId?: string; // Reference to the admin who owns this station
+  stats?: {
+    totalSessions: number;
+    totalEnergyDelivered: number; // in kWh
+    averageSessionDuration: number; // in minutes
+    revenue: number; // total revenue generated
+    lastMaintenanceDate?: Date;
+    uptime: number; // percentage uptime
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }

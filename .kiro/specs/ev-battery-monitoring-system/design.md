@@ -4,7 +4,7 @@
 
 The EV Battery Monitoring and Smart Charging Station Recommender System is a full-stack Next.js application that provides real-time battery monitoring and intelligent charging station recommendations. The system leverages modern web technologies including React Server Components, Tailwind CSS, Shadcn/UI components, and integrates with mapping services to deliver a responsive, user-friendly experience across all devices.
 
-The application follows a clean architecture pattern with clear separation between public user features and administrative functions, utilizing Next.js App Router for optimal performance and SEO.
+The application follows a clean architecture pattern with clear separation between public user features and administrative functions, utilizing Next.js App Router for optimal performance and SEO. It now supports **multiple administrators**, each of whom can securely manage their own charging stations with full ownership tracking.
 
 ## Architecture
 
@@ -227,12 +227,15 @@ interface ChargingStation {
   longitude: number;
   pricePerKwh: number;
   queueLength: number;
+  adminId: string; // 👈 Identifies which admin owns/added this station
   distance?: number; // Calculated based on user location
   amenities?: string[];
   operatingHours?: {
     open: string;
     close: string;
   };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface StationSearchParams {
@@ -246,7 +249,9 @@ interface StationSearchParams {
 interface AdminUser {
   id: string;
   username: string;
+  email?: string
   role: 'admin';
+  createdAt: Date;
 }
 
 interface StationFormData {
@@ -358,6 +363,7 @@ interface DeviceRegistrationFormData {
 
 **StationTable Component**
 - Data table with sorting and pagination
+- Displays only stations owned by the logged-in admin
 - Inline editing capabilities
 - Bulk actions (delete multiple stations)
 - Export functionality
@@ -367,6 +373,7 @@ interface DeviceRegistrationFormData {
 - Two-step location selection process
 - Real-time form validation feedback
 - Success/error handling with toast notifications
+- Automatically associates new station with the logged-in admin
 
 **LocationPicker Component**
 - Interactive map for location selection
@@ -511,6 +518,13 @@ Response: {
   success: boolean;
   station?: ChargingStation;
   error?: string;
+}
+```
+
+**GET /api/admin/stations**
+```typescript
+Response: {
+  stations: ChargingStation[]; // Only stations where adminId === session.user.id
 }
 ```
 

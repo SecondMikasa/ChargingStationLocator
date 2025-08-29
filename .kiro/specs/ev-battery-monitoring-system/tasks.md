@@ -299,6 +299,18 @@
     - _Requirements: 7.4, 7.5_
 
 - [ ] 10. Set up mock data and testing infrastructure
+
+
+
+
+
+
+
+
+
+
+
+
   - [ ] 10.1 Create comprehensive mock data
     - Build mock database with users, devices, stations, and voltage readings
     - Add realistic test data with valid coordinates and relationships
@@ -311,15 +323,23 @@
     - Implement development seed data and reset functionality
     - _Requirements: 8.4, 8.5_
 
-- [ ] 11. Final integration and testing
-  - [ ] 11.1 Integrate all components and test user flows
-    - Test complete user registration and device linking flow
-    - Verify battery monitoring and alert functionality
-    - Test charging station discovery and navigation
-    - _Requirements: 1.1-1.7, 2.1-2.5, 3.1-3.7_
+- [ ] 11. Integration of multiple admins support
 
-  - [ ] 11.2 Test admin functionality and responsive design
-    - Verify admin authentication and station management
-    - Test responsive design across different screen sizes
-    - Validate map functionality and location services
-    - _Requirements: 5.1-5.4, 6.1-6.5, 7.1-7.5, 9.1-9.4_
+
+
+  - [ ] 11.1 Admin UI with station ownership indicators 
+    - On the admin station table, ensure each station displays the admin’s name or "Owned by You" badge
+    - Confirm `AddStationForm` from `components/admin` is reusable and correctly associates new stations with the logged-in admin
+    - Validate success toasts appear after station addition ("✅ Station added successfully under your account")
+    - _Requirements: 7.1, 7.5, 9.3_
+     
+  - [ ] 11.2 Test multi-admin station management and ownership 
+    - Log in as Admin A and add a new charging station via /admin/stations/add
+    - Confirm station is created with adminId set to Admin A’s user ID
+    - Verify station appears in Admin A’s dashboard and station list
+    - Log out and log in as Admin B
+    - Confirm Admin B cannot see Admin A’s station in their dashboard
+    - Admin B adds their own station and confirms it is isolated to their account
+    - Attempt for Admin B to edit or delete Admin A’s station — expect 403 Forbidden
+    - _Requirements: 5.1, 5.2, 5.3, 7.1, 7.2, 7.3, 7.4, 7.5, 9.1, 9.2, 9.3_
+     

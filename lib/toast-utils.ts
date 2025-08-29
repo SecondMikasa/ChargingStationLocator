@@ -41,11 +41,12 @@ export const showLoadingToast = <T>(
     error: string;
   }
 ): Promise<T> => {
-  return toast.promise(promise, {
+  toast.promise(promise, {
     loading: messages.loading,
     success: messages.success,
     error: messages.error,
   });
+  return promise;
 };
 
 // Custom toast with action

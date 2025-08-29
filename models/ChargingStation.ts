@@ -12,6 +12,15 @@ export interface IChargingStation extends Document {
     open: string;
     close: string;
   };
+  adminId: string; // Reference to the admin who owns this station
+  stats: {
+    totalSessions: number;
+    totalEnergyDelivered: number; // in kWh
+    averageSessionDuration: number; // in minutes
+    revenue: number; // total revenue generated
+    lastMaintenanceDate?: Date;
+    uptime: number; // percentage uptime
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,8 +68,48 @@ const ChargingStationSchema = new Schema<IChargingStation>({
       required: [true, 'Closing hours are required'],
     },
   },
+  adminId: {
+    type: String,
+    required: [true, 'Admin ID is required'],
+    ref: 'User',
+  },
+  stats: {
+    totalSessions: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total sessions cannot be negative'],
+    },
+    totalEnergyDelivered: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total energy delivered cannot be negative'],
+    },
+    averageSessionDuration: {
+      type: Number,
+      default: 0,
+      min: [0, 'Average session duration cannot be negative'],
+    },
+    revenue: {
+      type: Number,
+      default: 0,
+      min: [0, 'Revenue cannot be negative'],
+    },
+    lastMaintenanceDate: {
+      type: Date,
+      default: null,
+    },
+    uptime: {
+      type: Number,
+      default: 100,
+      min: [0, 'Uptime cannot be negative'],
+      max: [100, 'Uptime cannot exceed 100%'],
+    },
+  },
 }, {
   timestamps: true,
 });
+
+// Helpful index for admin-owned queries
+ChargingStationSchema.index({ adminId: 1, createdAt: -1 });
 
 export default mongoose.models.ChargingStation || mongoose.model<IChargingStation>('ChargingStation', ChargingStationSchema);

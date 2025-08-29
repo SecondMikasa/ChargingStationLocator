@@ -6,6 +6,12 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
+    // If already authenticated, block access to auth pages
+    if (token && (pathname === '/login' || pathname === '/register')) {
+      const target = token.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+      return NextResponse.redirect(new URL(target, req.url));
+    }
+
     // Admin routes protection
     if (pathname.startsWith('/admin')) {
       if (!token) {

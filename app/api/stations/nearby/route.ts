@@ -105,10 +105,18 @@ export async function GET(request: NextRequest) {
           station.longitude
         );
         
+        // Return only public information, exclude admin-specific data
         return {
-          ...station,
-          id: station._id as string, // Convert MongoDB _id to string id
+          id: station._id as string,
+          name: station.name,
+          latitude: station.latitude,
+          longitude: station.longitude,
+          pricePerKwh: station.pricePerKwh,
+          queueLength: station.queueLength,
+          amenities: station.amenities || [],
+          operatingHours: station.operatingHours,
           distance
+          // Explicitly exclude: adminId, stats, createdAt, updatedAt
         };
       })
       .filter(station => station.distance <= validatedParams.radius)

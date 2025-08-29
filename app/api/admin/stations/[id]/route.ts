@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/admin-utils';
+import { withAdminAuth, getCurrentAdminId } from '@/lib/admin-utils';
 import connectDB from '@/lib/mongodb';
 import ChargingStation from '@/models/ChargingStation';
 import { z } from 'zod';
@@ -16,15 +16,24 @@ const UpdateStationSchema = z.object({
   operatingHours: z.object({
     open: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
     close: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format')
+  }).optional(),
+  stats: z.object({
+    totalSessions: z.number().int().min(0).optional(),
+    totalEnergyDelivered: z.number().min(0).optional(),
+    averageSessionDuration: z.number().min(0).optional(),
+    revenue: z.number().min(0).optional(),
+    lastMaintenanceDate: z.string().datetime().optional(),
+    uptime: z.number().min(0).max(100).optional()
   }).optional()
 });
 
-// PUT /api/admin/stations/[id] - Update station
-export const PUT = withAdminAuth(async (req: NextRequest, context: { params: Promise<{ id: string }> }) => {
+// GET /api/admin/stations/[id] - Get station details with stats
+export const GET = withAdminAuth(async (req: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
     
     const { id } = await context.params;
+    const adminId = await getCurrentAdminId();
     
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -34,21 +43,12 @@ export const PUT = withAdminAuth(async (req: NextRequest, context: { params: Pro
       );
     }
     
-    const body = await req.json();
-    
-    // Validate request data
-    const validatedData = UpdateStationSchema.parse(body);
-    
-    // Update station
-    const station = await ChargingStation.findByIdAndUpdate(
-      id,
-      validatedData,
-      { new: true, runValidators: true }
-    );
+    // Find station and verify ownership
+    const station = await ChargingStation.findOne({ _id: id, adminId });
     
     if (!station) {
       return NextResponse.json(
-        { success: false, error: 'Station not found' },
+        { success: false, error: 'Station not found or access denied' },
         { status: 404 }
       );
     }
@@ -64,6 +64,71 @@ export const PUT = withAdminAuth(async (req: NextRequest, context: { params: Pro
         queueLength: station.queueLength,
         amenities: station.amenities,
         operatingHours: station.operatingHours,
+        adminId: station.adminId,
+        stats: station.stats,
+        createdAt: station.createdAt,
+        updatedAt: station.updatedAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching station:', error);
+    
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch station' },
+      { status: 500 }
+    );
+  }
+});
+
+// PUT /api/admin/stations/[id] - Update station (admin can only update their own stations)
+export const PUT = withAdminAuth(async (req: NextRequest, context: { params: Promise<{ id: string }> }) => {
+  try {
+    await connectDB();
+    
+    const { id } = await context.params;
+    const adminId = await getCurrentAdminId();
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid station ID' },
+        { status: 400 }
+      );
+    }
+    
+    const body = await req.json();
+    
+    // Validate request data
+    const validatedData = UpdateStationSchema.parse(body);
+    
+    // Update station only if it belongs to the current admin
+    const station = await ChargingStation.findOneAndUpdate(
+      { _id: id, adminId },
+      validatedData,
+      { new: true, runValidators: true }
+    );
+    
+    if (!station) {
+      return NextResponse.json(
+        { success: false, error: 'Station not found or access denied' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({
+      success: true,
+      station: {
+        id: station._id.toString(),
+        name: station.name,
+        latitude: station.latitude,
+        longitude: station.longitude,
+        pricePerKwh: station.pricePerKwh,
+        queueLength: station.queueLength,
+        amenities: station.amenities,
+        operatingHours: station.operatingHours,
+        adminId: station.adminId,
+        stats: station.stats,
         createdAt: station.createdAt,
         updatedAt: station.updatedAt
       }
@@ -90,12 +155,13 @@ export const PUT = withAdminAuth(async (req: NextRequest, context: { params: Pro
   }
 });
 
-// DELETE /api/admin/stations/[id] - Delete station
+// DELETE /api/admin/stations/[id] - Delete station (admin can only delete their own stations)
 export const DELETE = withAdminAuth(async (req: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
     
     const { id } = await context.params;
+    const adminId = await getCurrentAdminId();
     
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -105,12 +171,12 @@ export const DELETE = withAdminAuth(async (req: NextRequest, context: { params: 
       );
     }
     
-    // Delete station
-    const station = await ChargingStation.findByIdAndDelete(id);
+    // Delete station only if it belongs to the current admin
+    const station = await ChargingStation.findOneAndDelete({ _id: id, adminId });
     
     if (!station) {
       return NextResponse.json(
-        { success: false, error: 'Station not found' },
+        { success: false, error: 'Station not found or access denied' },
         { status: 404 }
       );
     }

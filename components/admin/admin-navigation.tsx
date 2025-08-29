@@ -16,7 +16,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from '@/components/ui/sheet';
 import {
   Settings,
-  MapPin,
   LayoutDashboard,
   LogOut,
   User,

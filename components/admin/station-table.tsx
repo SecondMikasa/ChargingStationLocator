@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { ChargingStation } from '@/types/station';
 import {
   Table,
@@ -36,14 +37,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Edit, Trash2, MapPin, Clock, DollarSign, Users } from 'lucide-react';
+import { Edit, Trash2, MapPin, DollarSign, Users, Eye, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface StationTableProps {
   onStationUpdated?: () => void;
+  onViewDetails?: (stationId: string) => void;
 }
 
-export function StationTable({ onStationUpdated }: StationTableProps) {
+export function StationTable({ onStationUpdated, onViewDetails }: StationTableProps) {
+  const { data: session } = useSession();
   const [stations, setStations] = useState<ChargingStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingStation, setEditingStation] = useState<ChargingStation | null>(null);
@@ -187,8 +190,13 @@ export function StationTable({ onStationUpdated }: StationTableProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="h-5 w-5" />
-          Charging Stations ({stations.length})
+          My Charging Stations ({stations.length})
         </CardTitle>
+        {session && (
+          <div className="text-sm text-muted-foreground">
+            Stations managed by {session.user.name} ({session.user.email})
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {stations.length === 0 ? (
@@ -204,7 +212,8 @@ export function StationTable({ onStationUpdated }: StationTableProps) {
                   <TableHead>Location</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Queue</TableHead>
-                  <TableHead>Hours</TableHead>
+                  <TableHead>Revenue</TableHead>
+                  <TableHead>Sessions</TableHead>
                   <TableHead>Amenities</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -231,9 +240,16 @@ export function StationTable({ onStationUpdated }: StationTableProps) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Clock className="h-3 w-3" />
-                        {station.operatingHours?.open} - {station.operatingHours?.close}
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3 text-green-600" />
+                        <span className="text-sm font-medium">
+                          ${(station.stats?.revenue || 0).toFixed(0)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {(station.stats?.totalSessions || 0).toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -252,6 +268,15 @@ export function StationTable({ onStationUpdated }: StationTableProps) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {onViewDetails && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onViewDetails(station.id!)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

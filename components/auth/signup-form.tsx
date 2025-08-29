@@ -16,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { appToasts } from "@/lib/toast-utils";
 import { LoadingButton } from "@/components/ui/ui-polish";
 

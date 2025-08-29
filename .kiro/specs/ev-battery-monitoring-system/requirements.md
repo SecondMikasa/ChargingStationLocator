@@ -82,20 +82,23 @@ The EV Battery Monitoring and Smart Charging Station Recommender System is a res
 5. WHEN submission is successful THEN the system SHALL display a success toast and redirect to the station list
 6. WHEN submission fails THEN the system SHALL display appropriate error messages
 
-### Requirement 6
-
-**User Story:** As a system administrator, I want to charging stations added by me should be displayed under
-
-#### Acceptance Criteria
-
-1. WHEN I access the add station form THEN the system SHALL provide input fields for station name, price per kWh, and queue length
-2. WHEN entering location data THEN the system SHALL provide two options: manual latitude/longitude entry OR interactive map pin placement
-3. WHEN using the map option THEN the system SHALL auto-fill latitude and longitude coordinates when a pin is dropped
-4. WHEN I submit the form THEN the system SHALL send data to POST /api/admin/add-station
-5. WHEN submission is successful THEN the system SHALL display a success toast and redirect to the station list
-6. WHEN submission fails THEN the system SHALL display appropriate error messages
-
 ### Requirement 7
+
+**User Story** As a registered system administrator, I want to securely add, manage, and own charging stations under my identity, so that I can contribute to the network while maintaining accountability and control over my stations.
+
+### **Acceptance Criteria**
+
+1. WHEN I log in as an admin, THEN the system SHALL authenticate me using secure credentials and associate all actions with my admin profile. 
+2. WHEN I access the admin dashboard, THEN the system SHALL display only the charging stations assigned to me, ensuring data ownership and isolation from other admins. 
+3. WHEN I click "Add Station", THEN the system SHALL render the `add-station-form.tsx` component from `/components/admin`, pre-configured for multi-admin use. 
+4. WHEN I fill out the add station form, THEN the system SHALL require: station name, price per kWh, queue length, and location (manual lat/lng OR interactive map pin). 
+5. WHEN I use the interactive map, THEN the system SHALL allow me to drop a pin and auto-populate latitude and longitude fields upon placement. 
+6. WHEN I submit the form, THEN the system SHALL send a `POST` request to `/api/admin/add-station` with my `adminId` included to establish ownership. 
+7. WHEN the station is added successfully, THEN the system SHALL persist the station with my `adminId` as owner, display a success toast ("✅ Station added successfully under your account"), and redirect to my station list. 
+8. WHEN submission fails, THEN the system SHALL display clear error messages and preserve form input for correction. 
+9. WHEN I view the station list, THEN every station I added SHALL be visibly tagged with my name or admin ID and show an "Owned by You" indicator. 
+
+### Requirement 8
 
 **User Story:** As a user of the application, I want a responsive and modern interface that works on all devices, so that I can access the system from my phone, tablet, or desktop.
 
@@ -108,19 +111,21 @@ The EV Battery Monitoring and Smart Charging Station Recommender System is a res
 5. WHEN navigating between pages THEN the system SHALL provide smooth page transitions and loading states
 6. WHEN using mobile devices THEN the system SHALL maintain full functionality and usability
 
-### Requirement 8
-
-**User Story:** As a developer/tester, I want the system to work with simulated data, so that the application can be demonstrated and tested without requiring live backend services.
-
-#### Acceptance Criteria
-
-1. WHEN live APIs are unavailable THEN the system SHALL support mock data for all API endpoints
-2. WHEN using mock data THEN the system SHALL include realistic charging station data with valid coordinates
-3. WHEN displaying mock stations THEN the system SHALL render them on real maps using marker pins
-4. WHEN simulating data THEN the system SHALL include stations with properties: name, latitude, longitude, price_per_kWh, and queue length
-5. WHEN using mock voltage data THEN the system SHALL simulate realistic battery voltage readings and history
-
 ### Requirement 9
+
+**User Story:** As a system administrator, I demand a robust multi-admin architecture where I can not only add and manage my own charging stations but also analyze their performance—because every station I deploy reflects my responsibility and service quality.
+
+### **Acceptance Criteria**
+1. WHEN an admin logs in, THEN the backend SHALL verify their identity and return only stations linked to their `adminId`, enforcing strict data access control. 
+2. WHEN an admin accesses the dashboard, THEN the system SHALL display a personalized view of their stations, including real-time metrics: average daily usage, peak hours, feedback, and uptime. 
+3. WHEN an admin views a specific station, THEN the system SHALL provide a detailed analytics panel showing utilization trends, performance, and estimated revenue (if applicable). 
+4. WHEN an admin adds a station, THEN they MUST do so exclusively through the reusable `add-station-form.tsx` component located in `/components/admin`, ensuring consistent UX and logic across the admin panel. 
+5. WHEN a station is created, THEN the database SHALL store the `adminId` as a foreign key, establishing immutable ownership (unless modified by a super-admin). 
+6. WHEN multiple admins exist, THEN each SHALL operate in isolation—able to edit or delete only their own stations, with the UI clearly reflecting ownership (e.g., "My Stations" section). 
+7. WHEN an admin is deactivated, THEN the system SHALL either reassign or archive their stations based on organizational policy. 
+8. WHEN viewing stations globally (e.g., super-admin view), THEN the system MAY show all stations across admins, BUT regular admins SHALL only see and interact with their own. 
+
+### Requirement 10
 
 **User Story:** As a user, I want to see charging stations displayed on an interactive map, so that I can visualize their locations and make informed decisions about which station to visit.
 

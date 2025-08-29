@@ -55,7 +55,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
       ...prev,
       [field]: value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
@@ -72,7 +72,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
       latitude: lat,
       longitude: lng
     }));
-    
+
     // Clear location errors
     setErrors(prev => ({
       ...prev,
@@ -118,7 +118,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validatedData = validateForm();
     if (!validatedData) {
       toast.error('Please fix the form errors');
@@ -140,7 +140,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
 
       if (data.success) {
         toast.success('Charging station added successfully!');
-        
+
         // Reset form
         setFormData({
           name: '',
@@ -154,7 +154,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
             close: '22:00'
           }
         });
-        
+
         // Call callback if provided, otherwise navigate back to dashboard
         if (onStationAdded) {
           onStationAdded();
@@ -192,7 +192,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Basic Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Station Name *</Label>
@@ -293,13 +293,13 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
                 <MapPin className="h-5 w-5" />
                 Location
               </h3>
-              
+
               <LocationPicker
                 latitude={formData.latitude}
                 longitude={formData.longitude}
                 onLocationChange={handleLocationChange}
               />
-              
+
               {(errors.latitude || errors.longitude) && (
                 <div className="text-sm text-destructive">
                   {errors.latitude && <p>{errors.latitude}</p>}
@@ -327,7 +327,7 @@ export function AddStationForm({ onStationAdded, onCancel }: AddStationFormProps
                   </>
                 )}
               </Button>
-              
+
               {onCancel && (
                 <Button
                   type="button"

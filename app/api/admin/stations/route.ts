@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAdminAuth } from '@/lib/admin-utils';
+import { withAdminAuth, getCurrentAdminId } from '@/lib/admin-utils';
 import connectDB from '@/lib/mongodb';
 import ChargingStation from '@/models/ChargingStation';
 import { z } from 'zod';
@@ -18,12 +18,13 @@ const StationSchema = z.object({
   }).optional().default({ open: '06:00', close: '22:00' })
 });
 
-// GET /api/admin/stations - Get all stations
+// GET /api/admin/stations - Get stations for current admin
 export const GET = withAdminAuth(async () => {
   try {
     await connectDB();
     
-    const stations = await ChargingStation.find({}).sort({ createdAt: -1 });
+    const adminId = await getCurrentAdminId();
+    const stations = await ChargingStation.find({ adminId }).sort({ createdAt: -1 });
     
     return NextResponse.json({
       success: true,
@@ -36,6 +37,8 @@ export const GET = withAdminAuth(async () => {
         queueLength: station.queueLength,
         amenities: station.amenities,
         operatingHours: station.operatingHours,
+        adminId: station.adminId,
+        stats: station.stats,
         createdAt: station.createdAt,
         updatedAt: station.updatedAt
       }))
@@ -49,18 +52,32 @@ export const GET = withAdminAuth(async () => {
   }
 });
 
-// POST /api/admin/stations - Add new station
+// POST /api/admin/stations - Add new station for current admin
 export const POST = withAdminAuth(async (req: NextRequest) => {
   try {
     await connectDB();
     
     const body = await req.json();
+    const adminId = await getCurrentAdminId();
     
     // Validate request data
     const validatedData = StationSchema.parse(body);
     
-    // Create new station
-    const station = new ChargingStation(validatedData);
+    // Create new station with admin ID and default stats
+    const stationData = {
+      ...validatedData,
+      adminId,
+      stats: {
+        totalSessions: 0,
+        totalEnergyDelivered: 0,
+        averageSessionDuration: 0,
+        revenue: 0,
+        lastMaintenanceDate: null,
+        uptime: 100
+      }
+    };
+    
+    const station = new ChargingStation(stationData);
     await station.save();
     
     return NextResponse.json({
@@ -74,6 +91,8 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         queueLength: station.queueLength,
         amenities: station.amenities,
         operatingHours: station.operatingHours,
+        adminId: station.adminId,
+        stats: station.stats,
         createdAt: station.createdAt,
         updatedAt: station.updatedAt
       }
