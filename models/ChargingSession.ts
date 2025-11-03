@@ -12,6 +12,8 @@ export interface IChargingSession extends Document {
   trackingStatus: 'driving' | 'arrived' | 'charging' | 'completed';
   queuePosition: number;
   estimatedWaitTime?: number;
+  energyConsumed?: number; // in kWh
+  sessionRevenue?: number; // calculated revenue for this session
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +63,14 @@ const ChargingSessionSchema = new Schema<IChargingSession>({
   estimatedWaitTime: {
     type: Number,
     min: [0, 'Estimated wait time cannot be negative'],
+  },
+  energyConsumed: {
+    type: Number,
+    min: [0, 'Energy consumed cannot be negative'],
+  },
+  sessionRevenue: {
+    type: Number,
+    min: [0, 'Session revenue cannot be negative'],
   },
 }, {
   timestamps: true,

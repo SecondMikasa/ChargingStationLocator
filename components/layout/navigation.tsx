@@ -26,7 +26,7 @@ const navigationItems = [
         icon: MapPin,
     },
     {
-        title: 'Battery History',
+        title: 'Battery Analytics',
         href: '/history',
         icon: History,
     },

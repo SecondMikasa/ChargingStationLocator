@@ -11,6 +11,7 @@ import {
   createQueueAuditRecord,
   formatSessionForResponse 
 } from '@/lib/session-utils';
+import { processSessionCompletion } from '@/lib/revenue-utils';
 import webSocketService from '@/lib/websocket-service';
 import mongoose from 'mongoose';
 import { sessionCompletionRateLimiter } from '@/lib/rate-limiter';
@@ -238,6 +239,12 @@ export async function POST(request: NextRequest) {
           validSession.status = 'completed';
           validSession.completedAt = new Date();
           await validSession.save({ session: mongoSession });
+
+          // Process session completion: calculate energy, revenue, and update stats
+          const { energyConsumed, sessionRevenue, sessionDurationMinutes } = 
+            await processSessionCompletion(sessionId, mongoSession);
+
+          console.log(`Session ${sessionId} completed: ${energyConsumed.toFixed(2)} kWh, ₹${sessionRevenue.toFixed(2)} revenue`);
 
           // Get previous queue count for audit trail
           const previousQueueLength = validStation.queueLength;

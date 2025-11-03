@@ -74,13 +74,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return the voltage data
+    // Return the voltage data (with backward compatibility)
     return NextResponse.json({
       success: true,
       voltage: latestReading.voltage,
+      current: latestReading.current || 0, // Fallback for old data
+      power: latestReading.power || (latestReading.voltage * Math.abs(latestReading.current || 0)),
       percentage: latestReading.percentage,
       timestamp: latestReading.timestamp.toISOString(),
       status: latestReading.status,
+      currentStatus: latestReading.currentStatus || 'idle', // Fallback for old data
       vehicleId: latestReading.vehicleId,
       deviceName: targetDevice.deviceName
     });

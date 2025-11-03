@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { History, Clock, MapPin, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Loader2, Zap, DollarSign } from 'lucide-react';
 import { ChargingSession } from '@/types/queue';
 import { formatDate, formatDuration } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
@@ -216,6 +216,20 @@ export function SessionHistoryCard({ className }: SessionHistoryCardProps) {
                     <MapPin className="h-3 w-3" />
                     <span>Completed: {session.completedAt ? formatDate(new Date(session.completedAt)) : 'N/A'}</span>
                   </div>
+
+                  {session.energyConsumed && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Zap className="h-3 w-3" />
+                      <span>Energy: {session.energyConsumed.toFixed(2)} kWh</span>
+                    </div>
+                  )}
+
+                  {session.sessionRevenue && (
+                    <div className="flex items-center gap-1 text-green-600">
+                      <DollarSign className="h-3 w-3" />
+                      <span>Revenue: ₹{session.sessionRevenue.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

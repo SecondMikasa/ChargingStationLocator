@@ -10,7 +10,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "seed": "tsx scripts/seed-database.ts",
-    "test-db": "tsx scripts/test-connection.ts"
+    "seed:demo": "tsx scripts/generate-demo-data.ts",
+    "seed:demo-direct": "tsx scripts/generate-demo-data.ts --direct",
+    "test-db": "tsx scripts/test-connection.ts",
+    "test:battery-api": "tsx scripts/test-battery-api.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

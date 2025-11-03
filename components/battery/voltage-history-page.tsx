@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from "next/link";
-import { VoltageChart } from "@/components/battery/voltage-chart";
-import { VoltageDisplay } from "@/components/battery/voltage-display";
+import { BatteryChart } from "@/components/battery/battery-chart";
+import { BatteryDisplay } from "@/components/battery/battery-display";
+import { CurrentMonitor } from "@/components/battery/current-monitor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Battery, TrendingUp, Download, RefreshCw, Smartphone } from "lucide-react";
+import { ArrowLeft, Battery, TrendingUp, Download, RefreshCw, Smartphone, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserDevice {
@@ -18,11 +19,11 @@ interface UserDevice {
   isActive: boolean;
 }
 
-interface VoltageHistoryPageClientProps {
+interface BatteryHistoryPageClientProps {
   className?: string;
 }
 
-export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClientProps) {
+export function BatteryHistoryPageClient({ className }: BatteryHistoryPageClientProps) {
   const [devices, setDevices] = useState<UserDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -123,7 +124,7 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
             <Battery className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Voltage History</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Battery Analytics</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
               Try Again
@@ -151,11 +152,11 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                <Battery className="h-8 w-8 text-blue-600" />
-                Voltage History
+                <Zap className="h-8 w-8 text-blue-600" />
+                Battery Analytics
               </h1>
               <p className="text-gray-600">
-                Track your battery performance over time and identify patterns.
+                Monitor voltage, current, power consumption, and charging patterns over time.
               </p>
             </div>
             
@@ -213,55 +214,18 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Left Column - Current Status */}
           <div className="xl:col-span-1 space-y-6">
-            {/* Current Battery Status */}
-            <VoltageDisplay 
+            {/* Enhanced Battery Status */}
+            <BatteryDisplay 
               className="w-full" 
               vehicleId={selectedDevice || undefined}
             />
 
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  Quick Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">24h</div>
-                  <div className="text-xs text-muted-foreground">Monitoring Period</div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-semibold text-green-600">98%</div>
-                    <div className="text-xs text-muted-foreground">Uptime</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-semibold text-blue-600">156</div>
-                    <div className="text-xs text-muted-foreground">Readings</div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Peak Voltage</span>
-                      <span className="font-medium">54.2V</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lowest Voltage</span>
-                      <span className="font-medium">47.8V</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Average</span>
-                      <span className="font-medium">51.3V</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Real-time Current Monitor */}
+            <CurrentMonitor 
+              className="w-full"
+              vehicleId={selectedDevice || undefined}
+              compact={true}
+            />
 
             {/* Battery Health Tips */}
             <Card>
@@ -276,13 +240,14 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
                       <div className="font-medium text-green-800">Good Performance</div>
                     </div>
                     <div className="text-green-700 text-xs">
-                      Your battery is maintaining stable voltage levels
+                      Battery voltage and current are within normal ranges
                     </div>
                   </div>
                   
                   <div className="text-xs text-muted-foreground space-y-1">
-                    <p>• Monitor for sudden voltage drops</p>
-                    <p>• Charge regularly to maintain health</p>
+                    <p>• Monitor current flow patterns</p>
+                    <p>• Watch for charging efficiency</p>
+                    <p>• Track power consumption trends</p>
                     <p>• Avoid deep discharge cycles</p>
                   </div>
                 </div>
@@ -292,8 +257,8 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
 
           {/* Right Column - Chart and Analysis */}
           <div className="xl:col-span-3 space-y-6">
-            {/* Main Voltage Chart */}
-            <VoltageChart 
+            {/* Enhanced Battery Chart with Current Monitoring */}
+            <BatteryChart 
               className="w-full" 
               defaultPeriod="day"
               vehicleId={selectedDevice || undefined}
@@ -301,37 +266,45 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
 
             {/* Additional Analysis Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Usage Patterns */}
+              {/* Power Consumption Patterns */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Usage Patterns</CardTitle>
+                  <CardTitle className="text-lg">Power Patterns</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                       <div>
-                        <div className="font-medium text-blue-900">Peak Usage</div>
-                        <div className="text-sm text-blue-700">8:00 AM - 10:00 AM</div>
+                        <div className="font-medium text-red-900">Peak Discharge</div>
+                        <div className="text-sm text-red-700">8:00 AM - 10:00 AM</div>
                       </div>
-                      <div className="text-2xl font-bold text-blue-600">-2.4V</div>
+                      <div className="text-2xl font-bold text-red-600">-3.2A</div>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                       <div>
-                        <div className="font-medium text-green-900">Charging Time</div>
+                        <div className="font-medium text-green-900">Charging Period</div>
                         <div className="text-sm text-green-700">10:30 PM - 6:00 AM</div>
                       </div>
-                      <div className="text-2xl font-bold text-green-600">+6.8V</div>
+                      <div className="text-2xl font-bold text-green-600">+8.5A</div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                      <div>
+                        <div className="font-medium text-purple-900">Peak Power</div>
+                        <div className="text-sm text-purple-700">During fast charging</div>
+                      </div>
+                      <div className="text-2xl font-bold text-purple-600">420W</div>
                     </div>
 
                     <div className="text-xs text-muted-foreground mt-4">
-                      Based on voltage patterns from the last 7 days
+                      Based on current and power patterns from the last 7 days
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Efficiency Metrics */}
+              {/* Enhanced Efficiency Metrics */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Efficiency Metrics</CardTitle>
@@ -339,9 +312,9 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
                 <CardContent>
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-green-600 mb-1">92%</div>
-                      <div className="text-sm text-muted-foreground">Battery Efficiency</div>
-                      <div className="text-xs text-green-600 mt-1">+2% from last week</div>
+                      <div className="text-3xl font-bold text-green-600 mb-1">94%</div>
+                      <div className="text-sm text-muted-foreground">Charging Efficiency</div>
+                      <div className="text-xs text-green-600 mt-1">+3% from last week</div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
@@ -355,8 +328,19 @@ export function VoltageHistoryPageClient({ className }: VoltageHistoryPageClient
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">285W</div>
+                        <div className="text-xs text-muted-foreground">Avg Power</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">6.8kWh</div>
+                        <div className="text-xs text-muted-foreground">Daily Energy</div>
+                      </div>
+                    </div>
+
                     <div className="text-xs text-muted-foreground text-center mt-4">
-                      Calculated from voltage change rates
+                      Calculated from voltage, current, and power data
                     </div>
                   </div>
                 </CardContent>

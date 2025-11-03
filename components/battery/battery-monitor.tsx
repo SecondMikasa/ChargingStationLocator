@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { VoltageDisplay } from './voltage-display';
+import { BatteryDisplay } from './battery-display';
+import { BatteryChart } from './battery-chart';
 import { LowBatteryAlert } from './low-battery-alert';
 
-interface VoltageData {
+interface BatteryData {
   voltage: number;
+  current: number;
+  power: number;
   percentage: number;
   timestamp: string;
   status: 'normal' | 'low' | 'critical';
+  currentStatus: 'charging' | 'discharging' | 'idle';
   vehicleId: string;
   deviceName: string;
 }
@@ -16,40 +20,38 @@ interface VoltageData {
 interface BatteryMonitorProps {
   vehicleId?: string;
   className?: string;
+  showChart?: boolean;
 }
 
-export function BatteryMonitor({ vehicleId, className }: BatteryMonitorProps) {
-  const [voltageData, setVoltageData] = useState<VoltageData | null>(null);
+export function BatteryMonitor({ vehicleId, className, showChart = true }: BatteryMonitorProps) {
+  const [batteryData, setBatteryData] = useState<BatteryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Use loading and error states to prevent unused variable warnings
-  console.debug('Battery monitor state:', { loading, error });
   const [alertDismissed, setAlertDismissed] = useState(false);
 
   useEffect(() => {
-    const fetchVoltageData = async () => {
+    const fetchBatteryData = async () => {
       try {
         setLoading(true);
         setError(null);
 
         const url = vehicleId 
-          ? `/api/voltage?vehicleId=${encodeURIComponent(vehicleId)}`
-          : '/api/voltage';
+          ? `/api/battery?vehicleId=${encodeURIComponent(vehicleId)}`
+          : '/api/battery';
         
         const response = await fetch(url);
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch voltage data');
+          throw new Error(data.error || 'Failed to fetch battery data');
         }
 
         if (data.success) {
-          setVoltageData(data);
+          setBatteryData(data);
           // Reset alert dismissal when new data comes in
           setAlertDismissed(false);
         } else {
-          throw new Error(data.error || 'Failed to fetch voltage data');
+          throw new Error(data.error || 'Failed to fetch battery data');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -58,10 +60,10 @@ export function BatteryMonitor({ vehicleId, className }: BatteryMonitorProps) {
       }
     };
 
-    fetchVoltageData();
+    fetchBatteryData();
     
-    // Set up polling for real-time updates
-    const interval = setInterval(fetchVoltageData, 30000); // Poll every 30 seconds
+    // Set up polling for real-time updates (more frequent for current monitoring)
+    const interval = setInterval(fetchBatteryData, 10000); // Poll every 10 seconds
     
     return () => clearInterval(interval);
   }, [vehicleId]);
@@ -70,8 +72,8 @@ export function BatteryMonitor({ vehicleId, className }: BatteryMonitorProps) {
     setAlertDismissed(true);
   };
 
-  const shouldShowAlert = voltageData && 
-    (voltageData.status === 'low' || voltageData.status === 'critical') && 
+  const shouldShowAlert = batteryData && 
+    (batteryData.status === 'low' || batteryData.status === 'critical') && 
     !alertDismissed;
 
   return (
@@ -80,16 +82,23 @@ export function BatteryMonitor({ vehicleId, className }: BatteryMonitorProps) {
       {shouldShowAlert && (
         <div className="mb-6">
           <LowBatteryAlert
-            voltage={voltageData.voltage}
-            percentage={voltageData.percentage}
-            status={voltageData.status}
+            voltage={batteryData.voltage}
+            percentage={batteryData.percentage}
+            status={batteryData.status}
             onDismiss={handleAlertDismiss}
           />
         </div>
       )}
 
-      {/* Voltage Display */}
-      <VoltageDisplay vehicleId={vehicleId} />
+      {/* Battery Display */}
+      <div className="space-y-6">
+        <BatteryDisplay vehicleId={vehicleId} />
+        
+        {/* Battery Chart */}
+        {showChart && (
+          <BatteryChart vehicleId={vehicleId} />
+        )}
+      </div>
     </div>
   );
 }

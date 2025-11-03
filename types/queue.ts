@@ -13,6 +13,8 @@ export interface ChargingSession {
   trackingStatus: 'driving' | 'arrived' | 'charging' | 'completed';
   queuePosition: number;
   estimatedWaitTime?: number;
+  energyConsumed?: number; // in kWh
+  sessionRevenue?: number; // calculated revenue for this session
   createdAt: Date;
   updatedAt: Date;
 }

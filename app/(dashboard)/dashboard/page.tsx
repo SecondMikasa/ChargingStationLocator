@@ -68,9 +68,9 @@ export default async function DashboardPage() {
                     <Link href="/history" className="flex flex-col items-center gap-2">
                       <History className="h-6 w-6 text-green-600" />
                       <div className="text-center">
-                        <div className="font-medium">Voltage History</div>
+                        <div className="font-medium">Battery Analytics</div>
                         <div className="text-xs text-muted-foreground">
-                          View battery performance
+                          View voltage, current & power
                         </div>
                       </div>
                     </Link>

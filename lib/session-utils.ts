@@ -248,6 +248,8 @@ export function formatSessionForResponse(
     trackingStatus?: 'driving' | 'arrived' | 'charging' | 'completed';
     queuePosition: number;
     estimatedWaitTime?: number;
+    energyConsumed?: number;
+    sessionRevenue?: number;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -266,6 +268,8 @@ export function formatSessionForResponse(
     trackingStatus: session.trackingStatus || 'driving', // Default to 'driving' for existing sessions
     queuePosition: session.queuePosition,
     estimatedWaitTime: session.estimatedWaitTime,
+    energyConsumed: session.energyConsumed,
+    sessionRevenue: session.sessionRevenue,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt
   };
