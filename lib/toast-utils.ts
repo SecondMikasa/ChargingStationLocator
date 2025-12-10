@@ -79,7 +79,7 @@ export const appToasts = {
   loginSuccess: () => showSuccessToast('Welcome back!', 'You have been successfully logged in.'),
   loginError: () => showErrorToast('Login failed', 'Please check your credentials and try again.'),
   logoutSuccess: () => showSuccessToast('Logged out', 'You have been successfully logged out.'),
-  registrationSuccess: () => showSuccessToast('Account created!', 'Welcome to EV Monitor.'),
+  registrationSuccess: () => showSuccessToast('Account created!', 'Welcome to ChargeSense.'),
   registrationError: () => showErrorToast('Registration failed', 'Please try again or contact support.'),
 
   // Device management

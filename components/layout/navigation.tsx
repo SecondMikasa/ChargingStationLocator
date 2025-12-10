@@ -74,21 +74,21 @@ export function Navigation() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-16 items-center justify-between px-4">
+            <div className="container flex h-16 items-center px-4">
                 {/* Logo and Brand */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center">
                     <Link href="/dashboard" className="flex items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                             <Battery className="h-4 w-4 text-primary-foreground" />
                         </div>
-                        <span className="font-semibold">EV Monitor</span>
+                        <span className="font-semibold">ChargeSense</span>
                     </Link>
-
-                    {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-1">
-                        <NavItems />
-                    </nav>
                 </div>
+
+                {/* Desktop Navigation - Centered */}
+                <nav className="hidden md:flex items-center gap-1 flex-1 justify-center max-w-md mx-auto">
+                    <NavItems />
+                </nav>
 
                 {/* User Menu and Mobile Navigation */}
                 <div className="flex items-center gap-4">

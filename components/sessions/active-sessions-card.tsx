@@ -279,7 +279,7 @@ export function ActiveSessionsCard({ className }: ActiveSessionsCardProps) {
                 Updating...
               </div>
             ) : (
-              '📍 I&apos;ve Arrived at Station'
+              "📍 I've Arrived at Station"
             )}
           </Button>
         );
